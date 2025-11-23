@@ -11,7 +11,7 @@
   "icon": "images/icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/esonhugh/vscode-weaponized.git"
+    "url": "https://github.com/WeaponizedVSCode/Extension.git"
   },
   "extensionKind": [
     "workspace"

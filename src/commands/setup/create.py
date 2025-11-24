@@ -12,7 +12,7 @@ def create_value_map(filepath:str):
     variable_file_content_map = {}
     files = os.listdir(filepath)
     for file in files:
-        if file in ["create.py", "setup.ts", "assets.ts"]:
+        if file in ["create.py", "setup.ts", "assets.ts", ".gitignore"]:
             continue
         curr_file = os.path.join(filepath, file)
         if os.path.isfile(curr_file):
@@ -36,7 +36,9 @@ def main():
     value_map = create_value_map(dirname)
     file_print("export let fs = {")
     for key, value in value_map.items():
-        file_print(f'\t"{key}": atob("{value}"),')
+        filename = key.replace(dirname + '/', '')
+        print(f"Processing file: {filename}")
+        file_print(f'\t"{filename}": atob("{value}"),')
     file_print("};")
     print("Generated assets.ts successfully.")
 

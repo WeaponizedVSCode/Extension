@@ -189,7 +189,7 @@ Open `.vscode/settings.json` and configure your local host information:
 
 Create a Markdown file in the `hosts/` directory, e.g., `hosts/htb/machine.md`:
 
-```markdown
+````markdown
 # Target Machine
 
 ## Host Information
@@ -204,6 +204,7 @@ Create a Markdown file in the `hosts/` directory, e.g., `hosts/htb/machine.md`:
   is_current_dc: false
   props: {}
 ```
+````
 
 After saving the file, you'll see CodeLens buttons appear above the YAML block.
 
@@ -239,7 +240,7 @@ When running the `weapon management: Setup/Create/Init weaponized vscode folder 
 
 Add YAML blocks in Markdown files under `hosts/` or `hosts/[category]/` directories:
 
-```markdown
+````markdown
 ## Target Hosts
 
 ```yaml host
@@ -255,6 +256,7 @@ Add YAML blocks in Markdown files under `hosts/` or `hosts/[category]/` director
     ENV_DOMAIN: corp.local
     ENV_DC: dc01.corp.local
 ```
+````
 
 #### Host Field Descriptions
 
@@ -319,7 +321,7 @@ Displays all discovered host information in table format.
 
 Add YAML blocks in Markdown files under `users/` or `users/[category]/` directories:
 
-```markdown
+````markdown
 ## Credentials
 
 ```yaml credentials
@@ -336,6 +338,7 @@ Add YAML blocks in Markdown files under `users/` or `users/[category]/` director
   props:
     ENV_SVC_USER: svc_backup
 ```
+````
 
 #### Credential Field Descriptions
 
@@ -395,7 +398,7 @@ weapon management: Switch/Set current user
 
 Add Shell code blocks in Markdown files:
 
-```markdown
+````markdown
 ## Enumeration Commands
 
 ```bash
@@ -405,7 +408,7 @@ nmap -sS -sV -O $TARGET
 ```powershell
 Get-ADUser -Filter * | Select-Object Name,SamAccountName
 ```
-```
+````
 
 Supported code block types:
 - `bash`
@@ -430,7 +433,7 @@ Commands can use environment variables like `$TARGET`, `$USER`, `$PASSWORD`, etc
 
 Add HTTP code blocks in Markdown files:
 
-```markdown
+````markdown
 ## API Testing
 
 ```http
@@ -441,7 +444,7 @@ Content-Length: 42
 
 {"username": "admin", "password": "test"}
 ```
-```
+````
 
 #### CodeLens Actions
 
@@ -1023,7 +1026,7 @@ export API_ENDPOINT='/api/v1'
 
 #### Scenario: Multi-Host Active Directory Penetration
 
-```markdown
+````markdown
 ## Config file hosts/ad.md
 
 ```yaml host
@@ -1034,9 +1037,9 @@ export API_ENDPOINT='/api/v1'
   props:
     ENV_DOMAIN_NAME: CORP
 ```
-```
+````
 
-```markdown
+````markdown
 ## Config file users/admin.md
 
 ```yaml credentials
@@ -1045,7 +1048,7 @@ export API_ENDPOINT='/api/v1'
   login: CORP
   is_current: true
 ```
-```
+````
 
 #### Execute Commands Using Variables
 

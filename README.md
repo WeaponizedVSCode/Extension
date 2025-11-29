@@ -189,7 +189,7 @@ workspace/
 
 在 `hosts/` 目录下创建一个 Markdown 文件，例如 `hosts/htb/machine.md`：
 
-```markdown
+````markdown
 # 目标机器
 
 ## 主机信息
@@ -204,6 +204,7 @@ workspace/
   is_current_dc: false
   props: {}
 ```
+````
 
 保存文件后，您将看到 CodeLens 按钮出现在 YAML 块上方。
 
@@ -239,7 +240,7 @@ weapon_vscode_launch_helper
 
 在 `hosts/` 或 `hosts/[category]/` 目录下的 Markdown 文件中添加 YAML 块：
 
-```markdown
+````markdown
 ## 目标主机
 
 ```yaml host
@@ -255,6 +256,7 @@ weapon_vscode_launch_helper
     ENV_DOMAIN: corp.local
     ENV_DC: dc01.corp.local
 ```
+````
 
 #### 主机字段说明
 
@@ -319,7 +321,7 @@ weapon management: List/Dump all hosts
 
 在 `users/` 或 `users/[category]/` 目录下的 Markdown 文件中添加 YAML 块：
 
-```markdown
+````markdown
 ## 凭证信息
 
 ```yaml credentials
@@ -336,6 +338,7 @@ weapon management: List/Dump all hosts
   props:
     ENV_SVC_USER: svc_backup
 ```
+````
 
 #### 凭证字段说明
 
@@ -395,7 +398,7 @@ weapon management: Switch/Set current user
 
 在 Markdown 文件中添加 Shell 代码块：
 
-```markdown
+````markdown
 ## 枚举命令
 
 ```bash
@@ -405,7 +408,7 @@ nmap -sS -sV -O $TARGET
 ```powershell
 Get-ADUser -Filter * | Select-Object Name,SamAccountName
 ```
-```
+````
 
 支持的代码块类型：
 - `bash`
@@ -430,7 +433,7 @@ Get-ADUser -Filter * | Select-Object Name,SamAccountName
 
 在 Markdown 文件中添加 HTTP 代码块：
 
-```markdown
+````markdown
 ## API 测试
 
 ```http
@@ -441,7 +444,7 @@ Content-Length: 42
 
 {"username": "admin", "password": "test"}
 ```
-```
+````
 
 #### CodeLens 操作
 
@@ -743,7 +746,7 @@ weapon foam: Show Foam Graph
 
 **生成的报告结构**：
 
-```markdown
+````markdown
 ---
 title: Final Penetration Testing Report
 type: report
@@ -767,7 +770,7 @@ type: report
 
 ## Extra Pwned Users
 [不在主攻击路径上的其他用户]
-```
+````
 
 **最佳实践**：
 
@@ -1023,7 +1026,7 @@ export API_ENDPOINT='/api/v1'
 
 #### 场景：多主机 Active Directory 渗透
 
-```markdown
+````markdown
 ## 配置文件 hosts/ad.md
 
 ```yaml host
@@ -1034,9 +1037,9 @@ export API_ENDPOINT='/api/v1'
   props:
     ENV_DOMAIN_NAME: CORP
 ```
-```
+````
 
-```markdown
+````markdown
 ## 配置文件 users/admin.md
 
 ```yaml credentials
@@ -1045,7 +1048,7 @@ export API_ENDPOINT='/api/v1'
   login: CORP
   is_current: true
 ```
-```
+````
 
 #### 使用变量执行命令
 

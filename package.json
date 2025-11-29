@@ -27,8 +27,7 @@
     "workspaceContains:**/hosts/**.md",
     "workspaceContains:**/users/**.md",
     "workspaceContains:**/services/**.md",
-    "workspaceContains:**/.weaponized",
-    "onStartupFinished"
+    "workspaceContains:**/.weaponized"
   ],
   "main": "./dist/extension.js",
   "contributes": {

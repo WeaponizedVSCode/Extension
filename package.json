@@ -1,9 +1,9 @@
 {
-  "name": "weaponized",
-  "displayName": "weaponized",
-  "description": "This is the vscode extension designed for esonhugh/weaponizedvscode project.",
+  "name": "core",
+  "displayName": "weaponized vscode",
+  "description": "This is the vscode extension designed for WeaponizedVSCode/Extension project.",
   "version": "0.0.1",
-  "publisher": "Esonhugh",
+  "publisher": "WeaponizedVSCode",
   "engines": {
     "vscode": "^1.101.0"
   },
@@ -27,7 +27,8 @@
     "workspaceContains:**/hosts/**.md",
     "workspaceContains:**/users/**.md",
     "workspaceContains:**/services/**.md",
-    "workspaceContains:**/.weaponized"
+    "workspaceContains:**/.weaponized",
+    "onStartupFinished"
   ],
   "main": "./dist/extension.js",
   "contributes": {

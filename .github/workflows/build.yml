@@ -89,6 +89,6 @@ jobs:
         with:
           body_path: ${{ github.workspace }}/version.txt
           files: |
-            ${{ github.workspace }}/weaponized-0.0.1.vsix
+            ${{ github.workspace }}/*.vsix
             ${{ github.workspace }}/commit_notes
             ${{ github.workspace }}/zshrc_helper

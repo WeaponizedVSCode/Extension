@@ -90,6 +90,7 @@
 - **可配置日志级别**：选择仅记录命令或同时记录命令和输出
 - **会话跟踪**：使用时间戳和工作目录跟踪终端会话
 - **日志管理**：根据测试的不同阶段按需启动/停止日志记录
+- **Shell Integration 支持**：需要 VSCode Shell Integration 为 Rich 模式才能正常工作
 
 ### 📋 增强笔记管理
 - **Foam 集成**：为主机、用户和服务创建结构化笔记
@@ -275,6 +276,7 @@ weapon_vscode_launch_helper
 - **export as current**：将主机设为当前目标并导出
 - **set as current**：设置主机为当前活动目标
 - **unset as current**：取消主机的当前状态
+- **Scan host**：直接对当前主机块中的目标运行扫描器
 
 #### 导出的环境变量
 
@@ -603,6 +605,30 @@ weapon feature: Decode selected text
 
 ### 终端日志记录
 
+#### ⚠️ 前置要求：启用 Shell Integration
+
+终端记录器功能依赖 VSCode 的 **Shell Integration** 功能。您需要确保：
+
+1. **VSCode 设置**：确保 Terminal Shell Integration 已启用（默认启用）
+
+2. **Shell 配置**：在您的 `.zshrc` 或 `.bashrc` 中添加 Shell Integration 支持：
+
+对于 **Zsh**，在 `.zshrc` 中添加：
+```bash
+# VSCode Shell Integration for Zsh
+[[ "$TERM_PROGRAM" == "vscode" ]] && . "$(code --locate-shell-integration-path zsh)"
+```
+
+对于 **Bash**，在 `.bashrc` 中添加：
+```bash
+# VSCode Shell Integration for Bash
+[[ "$TERM_PROGRAM" == "vscode" ]] && . "$(code --locate-shell-integration-path bash)"
+```
+
+3. **验证**：重启终端后，您应该能在终端行首看到特殊的标记符号，表明 Shell Integration 已激活
+
+> 💡 **提示**：Shell Integration 启用后，VSCode 能够捕获每个命令的执行情况、工作目录和输出内容。
+
 #### 启动终端日志
 
 运行命令：
@@ -647,6 +673,14 @@ weapon recorder: Stop/Unregister terminal logger
 }
 ```
 
+#### 日志输出示例
+
+```
+weaponized-terminal-logging:[1701234567890][terminalid: 12345][terminalName: zsh] user@/home/kali/project$ nmap -sS 10.10.10.100
+Starting Nmap 7.94 ( https://nmap.org )
+...
+```
+
 ---
 
 ### 笔记创建
@@ -665,6 +699,7 @@ weapon foam: Create/New note (user/host/service) from foam template
 2. **user.md**：用户凭证笔记模板
 3. **service.md**：服务信息笔记模板
 4. **finding.md**：发现/漏洞笔记模板
+5. **report.js**：自动生成渗透测试报告（高级功能）
 
 #### 查看关系图
 
@@ -675,6 +710,70 @@ weapon foam: Show Foam Graph
 ```
 
 可视化查看主机、用户、服务之间的关系。
+
+#### 📊 自动生成渗透测试报告 (report.js)
+
+`report.js` 是一个高级 Foam 模板脚本，能够自动分析您的笔记关系并生成完整的渗透测试报告。
+
+**功能特点**：
+
+1. **图关系分析**：
+   - 自动解析 Foam 工作区中所有的主机、用户、服务笔记
+   - 构建笔记之间的引用关系图
+   - 区分主机关系边和用户关系边
+
+2. **攻击路径计算**：
+   - 使用 **Tarjan 算法** 检测强连通分量 (SCC)
+   - 通过 DAG 拓扑排序计算最长攻击路径
+   - 自动识别权限提升链路
+
+3. **Mermaid 图表生成**：
+   - 自动生成用户权限提升关系的 Mermaid 流程图
+   - 可视化展示攻击路径
+
+4. **报告内容**：
+   - 主机信息汇总（自动嵌入所有主机笔记）
+   - 完整关系图（Mermaid 格式）
+   - 权限提升路径（按攻击顺序排列）
+   - 额外获取的用户（不在主攻击路径上的用户）
+
+**使用方法**：
+
+运行 Foam 的 `Create note from template` 命令，选择 `report.js` 模板。
+
+**生成的报告结构**：
+
+```markdown
+---
+title: Final Penetration Testing Report
+type: report
+---
+
+# Final Penetration Testing Report
+
+## Hosts Information
+[自动嵌入所有主机笔记内容]
+
+## Full Relations graph
+[Mermaid 流程图]
+
+## Privilege Escalation Path
+### Initial User: [初始用户]
+[用户笔记内容]
+
+### User [后续用户]
+[用户笔记内容]
+...
+
+## Extra Pwned Users
+[不在主攻击路径上的其他用户]
+```
+
+**最佳实践**：
+
+- 在用户笔记中使用 `[[链接]]` 语法关联到下一个获取的用户
+- 设置笔记的 `type` 属性为 `user`、`host` 或 `service`
+- 保持笔记之间的引用关系清晰，以便生成准确的攻击路径
 
 ---
 
@@ -847,6 +946,172 @@ Active Directory 环境分析查询代码片段。
 | `${config:weaponized.setting}` | 任何扩展配置 |
 | `${workspaceFolder}` | 工作区根目录 |
 | 自定义环境变量 | 来自 `weaponized.envs` |
+
+---
+
+## 🚀 全自动环境变量的渗透测试优势
+
+本扩展的核心优势之一是**全自动环境变量管理系统**，它能显著提升渗透测试的效率和一致性。
+
+### 为什么使用环境变量？
+
+在传统渗透测试中，测试人员需要反复输入目标 IP、用户名、密码等信息。使用本扩展的环境变量系统，您可以：
+
+#### 1. 一次配置，处处使用
+
+```bash
+# 传统方式 - 每次都要输入完整信息
+nmap -sS -sV 10.10.10.100
+crackmapexec smb 10.10.10.100 -u administrator -p 'P@ssw0rd123'
+evil-winrm -i 10.10.10.100 -u administrator -p 'P@ssw0rd123'
+
+# 使用环境变量 - 简洁高效
+nmap -sS -sV $RHOST
+crackmapexec smb $RHOST -u $USER -p $PASS
+evil-winrm -i $RHOST -u $USER -p $PASS
+```
+
+#### 2. 自动同步的目标切换
+
+当您切换当前目标主机或用户时，环境变量自动更新：
+
+```bash
+# 切换目标后，同样的命令自动指向新目标
+echo "当前目标: $TARGET ($RHOST)"
+echo "当前用户: $USER / $PASS"
+```
+
+#### 3. 支持的环境变量
+
+| 变量 | 来源 | 描述 |
+|------|------|------|
+| `$TARGET` | 当前主机 | 目标主机名 |
+| `$HOST` | 当前主机 | 主机名（同 TARGET） |
+| `$DOMAIN` | 当前主机 | 域名 |
+| `$RHOST` | 当前主机 | 目标 IP 地址 |
+| `$IP` | 当前主机 | IP 地址（同 RHOST） |
+| `$DC_HOST` | 当前 DC | 域控主机名 |
+| `$DC_IP` | 当前 DC | 域控 IP |
+| `$USER` | 当前用户 | 用户名 |
+| `$USERNAME` | 当前用户 | 用户名（同 USER） |
+| `$PASS` | 当前用户 | 密码 |
+| `$PASSWORD` | 当前用户 | 密码（同 PASS） |
+| `$NT_HASH` | 当前用户 | NTLM 哈希 |
+| `$LOGIN` | 当前用户 | 登录域 |
+| `$LHOST` | 配置 | 本地监听 IP |
+| `$LPORT` | 配置 | 本地监听端口 |
+
+#### 4. 自定义环境变量
+
+通过 `props` 字段添加自定义环境变量：
+
+```yaml host
+- hostname: target.htb
+  ip: 10.10.10.100
+  props:
+    ENV_WEB_PORT: "8080"
+    ENV_API_ENDPOINT: "/api/v1"
+```
+
+这将导出：
+```bash
+export WEB_PORT='8080'
+export API_ENDPOINT='/api/v1'
+```
+
+### 实际工作流程示例
+
+#### 场景：多主机 Active Directory 渗透
+
+```markdown
+## 配置文件 hosts/ad.md
+
+```yaml host
+- hostname: dc01.corp.local
+  ip: 192.168.1.10
+  is_dc: true
+  is_current_dc: true
+  props:
+    ENV_DOMAIN_NAME: CORP
+```
+```
+
+```markdown
+## 配置文件 users/admin.md
+
+```yaml credentials
+- user: administrator
+  password: P@ssw0rd!
+  login: CORP
+  is_current: true
+```
+```
+
+#### 使用变量执行命令
+
+```bash
+# Kerberoasting
+impacket-GetUserSPNs "$LOGIN/$USER:$PASS" -dc-ip $DC_IP -request
+
+# 导出域信息
+bloodhound-python -u $USER -p $PASS -d $DOMAIN_NAME -dc $DC_HOST -c all
+
+# 使用 Evil-WinRM 连接
+evil-winrm -i $RHOST -u $USER -p $PASS
+
+# NTLM 哈希认证
+crackmapexec smb $RHOST -u $USER -H $NT_HASH
+```
+
+### 工作区自动同步
+
+扩展会监控 `hosts/` 和 `users/` 目录下的 Markdown 文件变化：
+
+1. **文件保存时**：自动解析 YAML 块，更新工作区状态
+2. **变量导出**：将当前目标的信息写入 `.vscode/.zshrc`
+3. **终端加载**：新终端自动加载环境变量
+
+### Shell 辅助函数
+
+初始化工作区后，`.vscode/.zshrc` 还提供以下辅助函数：
+
+```bash
+# 查看当前目标状态
+current_status
+
+# URL 编码/解码
+url encode "test string"
+url decode "test%20string"
+
+# 生成 NTLM 哈希
+ntlm "password123"
+
+# 代理切换
+proxys on    # 开启代理
+proxys off   # 关闭代理
+proxys show  # 显示当前代理
+
+# VHOST 枚举
+wfuzz_vhost_http target.htb /path/to/wordlist
+wfuzz_vhost_https target.htb /path/to/wordlist
+```
+
+### 最佳实践
+
+1. **组织结构**：按目标或项目组织 hosts/users 目录
+   ```
+   hosts/
+   ├── external/
+   │   └── web-servers.md
+   └── internal/
+       ├── domain-controllers.md
+       └── workstations.md
+   ```
+
+2. **命名规范**：使用有意义的主机名和用户描述
+3. **及时更新**：获取新凭证后立即添加到对应的 YAML 块
+4. **使用 `is_current`**：始终标记当前正在操作的目标
+5. **善用 `props`**：存储目标特定的配置信息
 
 ---
 

@@ -90,6 +90,7 @@ A feature-rich VSCode extension specifically designed for penetration testing an
 - **Configurable Log Levels**: Choose between command-only or command-and-output logging
 - **Session Tracking**: Track terminal sessions with timestamps and working directories
 - **Log Management**: Start/stop logging as needed for different phases of testing
+- **Shell Integration Support**: Requires VSCode Shell Integration in Rich mode to work properly
 
 ### 📋 Enhanced Note Management
 - **Foam Integration**: Create structured notes for hosts, users, and services
@@ -275,6 +276,7 @@ Above host YAML blocks, you'll see the following CodeLens buttons:
 - **export as current**: Set host as current target and export
 - **set as current**: Set host as current active target
 - **unset as current**: Remove current status from host
+- **Scan host**: Run scanner directly against the targets in the current host block
 
 #### Exported Environment Variables
 
@@ -603,6 +605,30 @@ Supported auto-detected encodings:
 
 ### Terminal Logging
 
+#### ⚠️ Prerequisites: Enable Shell Integration
+
+The terminal recorder feature depends on VSCode's **Shell Integration** feature. You need to ensure:
+
+1. **VSCode Settings**: Make sure Terminal Shell Integration is enabled (enabled by default)
+
+2. **Shell Configuration**: Add Shell Integration support to your `.zshrc` or `.bashrc`:
+
+For **Zsh**, add to `.zshrc`:
+```bash
+# VSCode Shell Integration for Zsh
+[[ "$TERM_PROGRAM" == "vscode" ]] && . "$(code --locate-shell-integration-path zsh)"
+```
+
+For **Bash**, add to `.bashrc`:
+```bash
+# VSCode Shell Integration for Bash
+[[ "$TERM_PROGRAM" == "vscode" ]] && . "$(code --locate-shell-integration-path bash)"
+```
+
+3. **Verification**: After restarting the terminal, you should see special markers at the beginning of terminal lines, indicating Shell Integration is active
+
+> 💡 **Tip**: With Shell Integration enabled, VSCode can capture each command's execution, working directory, and output.
+
 #### Start Terminal Logging
 
 Run command:
@@ -647,6 +673,14 @@ Configure in `settings.json`:
 }
 ```
 
+#### Log Output Example
+
+```
+weaponized-terminal-logging:[1701234567890][terminalid: 12345][terminalName: zsh] user@/home/kali/project$ nmap -sS 10.10.10.100
+Starting Nmap 7.94 ( https://nmap.org )
+...
+```
+
 ---
 
 ### Note Creation
@@ -665,6 +699,7 @@ weapon foam: Create/New note (user/host/service) from foam template
 2. **user.md**: User credential note template
 3. **service.md**: Service information note template
 4. **finding.md**: Finding/vulnerability note template
+5. **report.js**: Auto-generate penetration testing report (advanced feature)
 
 #### View Relationship Graph
 
@@ -675,6 +710,70 @@ weapon foam: Show Foam Graph
 ```
 
 Visualize relationships between hosts, users, and services.
+
+#### 📊 Auto-Generate Penetration Testing Report (report.js)
+
+`report.js` is an advanced Foam template script that automatically analyzes your note relationships and generates a complete penetration testing report.
+
+**Features**:
+
+1. **Graph Relationship Analysis**:
+   - Automatically parses all host, user, and service notes in the Foam workspace
+   - Builds reference relationship graphs between notes
+   - Distinguishes between host relationship edges and user relationship edges
+
+2. **Attack Path Calculation**:
+   - Uses **Tarjan's Algorithm** to detect Strongly Connected Components (SCC)
+   - Calculates longest attack path through DAG topological sorting
+   - Automatically identifies privilege escalation chains
+
+3. **Mermaid Diagram Generation**:
+   - Auto-generates Mermaid flowchart of user privilege escalation relationships
+   - Visualizes the attack path
+
+4. **Report Contents**:
+   - Host information summary (auto-embeds all host notes)
+   - Full relationship graph (Mermaid format)
+   - Privilege escalation path (ordered by attack sequence)
+   - Extra pwned users (users not in the main attack path)
+
+**Usage**:
+
+Run Foam's `Create note from template` command and select the `report.js` template.
+
+**Generated Report Structure**:
+
+```markdown
+---
+title: Final Penetration Testing Report
+type: report
+---
+
+# Final Penetration Testing Report
+
+## Hosts Information
+[Auto-embedded content from all host notes]
+
+## Full Relations graph
+[Mermaid flowchart]
+
+## Privilege Escalation Path
+### Initial User: [Initial user]
+[User note content]
+
+### User [Subsequent user]
+[User note content]
+...
+
+## Extra Pwned Users
+[Other users not in the main attack path]
+```
+
+**Best Practices**:
+
+- Use `[[link]]` syntax in user notes to link to the next acquired user
+- Set note's `type` property to `user`, `host`, or `service`
+- Maintain clear reference relationships between notes for accurate attack path generation
 
 ---
 
@@ -847,6 +946,172 @@ The extension supports the following dynamic variable substitutions:
 | `${config:weaponized.setting}` | Any extension configuration |
 | `${workspaceFolder}` | Workspace root directory |
 | Custom environment variables | From `weaponized.envs` |
+
+---
+
+## 🚀 Advantages of Automatic Environment Variables for Penetration Testing
+
+One of the core advantages of this extension is the **automatic environment variable management system**, which significantly improves penetration testing efficiency and consistency.
+
+### Why Use Environment Variables?
+
+In traditional penetration testing, testers need to repeatedly input target IPs, usernames, passwords, and other information. With this extension's environment variable system, you can:
+
+#### 1. Configure Once, Use Everywhere
+
+```bash
+# Traditional way - enter full info every time
+nmap -sS -sV 10.10.10.100
+crackmapexec smb 10.10.10.100 -u administrator -p 'P@ssw0rd123'
+evil-winrm -i 10.10.10.100 -u administrator -p 'P@ssw0rd123'
+
+# Using environment variables - clean and efficient
+nmap -sS -sV $RHOST
+crackmapexec smb $RHOST -u $USER -p $PASS
+evil-winrm -i $RHOST -u $USER -p $PASS
+```
+
+#### 2. Auto-Synced Target Switching
+
+When you switch the current target host or user, environment variables update automatically:
+
+```bash
+# After switching targets, the same commands automatically point to the new target
+echo "Current target: $TARGET ($RHOST)"
+echo "Current user: $USER / $PASS"
+```
+
+#### 3. Supported Environment Variables
+
+| Variable | Source | Description |
+|----------|--------|-------------|
+| `$TARGET` | Current host | Target hostname |
+| `$HOST` | Current host | Hostname (same as TARGET) |
+| `$DOMAIN` | Current host | Domain name |
+| `$RHOST` | Current host | Target IP address |
+| `$IP` | Current host | IP address (same as RHOST) |
+| `$DC_HOST` | Current DC | Domain controller hostname |
+| `$DC_IP` | Current DC | Domain controller IP |
+| `$USER` | Current user | Username |
+| `$USERNAME` | Current user | Username (same as USER) |
+| `$PASS` | Current user | Password |
+| `$PASSWORD` | Current user | Password (same as PASS) |
+| `$NT_HASH` | Current user | NTLM hash |
+| `$LOGIN` | Current user | Login domain |
+| `$LHOST` | Config | Local listening IP |
+| `$LPORT` | Config | Local listening port |
+
+#### 4. Custom Environment Variables
+
+Add custom environment variables through the `props` field:
+
+```yaml host
+- hostname: target.htb
+  ip: 10.10.10.100
+  props:
+    ENV_WEB_PORT: "8080"
+    ENV_API_ENDPOINT: "/api/v1"
+```
+
+This exports:
+```bash
+export WEB_PORT='8080'
+export API_ENDPOINT='/api/v1'
+```
+
+### Real-World Workflow Example
+
+#### Scenario: Multi-Host Active Directory Penetration
+
+```markdown
+## Config file hosts/ad.md
+
+```yaml host
+- hostname: dc01.corp.local
+  ip: 192.168.1.10
+  is_dc: true
+  is_current_dc: true
+  props:
+    ENV_DOMAIN_NAME: CORP
+```
+```
+
+```markdown
+## Config file users/admin.md
+
+```yaml credentials
+- user: administrator
+  password: P@ssw0rd!
+  login: CORP
+  is_current: true
+```
+```
+
+#### Execute Commands Using Variables
+
+```bash
+# Kerberoasting
+impacket-GetUserSPNs "$LOGIN/$USER:$PASS" -dc-ip $DC_IP -request
+
+# Export domain info
+bloodhound-python -u $USER -p $PASS -d $DOMAIN_NAME -dc $DC_HOST -c all
+
+# Connect with Evil-WinRM
+evil-winrm -i $RHOST -u $USER -p $PASS
+
+# NTLM hash authentication
+crackmapexec smb $RHOST -u $USER -H $NT_HASH
+```
+
+### Workspace Auto-Sync
+
+The extension monitors changes to Markdown files in `hosts/` and `users/` directories:
+
+1. **On File Save**: Automatically parses YAML blocks and updates workspace state
+2. **Variable Export**: Writes current target info to `.vscode/.zshrc`
+3. **Terminal Loading**: New terminals automatically load environment variables
+
+### Shell Helper Functions
+
+After workspace initialization, `.vscode/.zshrc` also provides these helper functions:
+
+```bash
+# View current target status
+current_status
+
+# URL encode/decode
+url encode "test string"
+url decode "test%20string"
+
+# Generate NTLM hash
+ntlm "password123"
+
+# Proxy switching
+proxys on    # Enable proxy
+proxys off   # Disable proxy
+proxys show  # Show current proxy
+
+# VHOST enumeration
+wfuzz_vhost_http target.htb /path/to/wordlist
+wfuzz_vhost_https target.htb /path/to/wordlist
+```
+
+### Best Practices
+
+1. **Organize Structure**: Organize hosts/users directories by target or project
+   ```
+   hosts/
+   ├── external/
+   │   └── web-servers.md
+   └── internal/
+       ├── domain-controllers.md
+       └── workstations.md
+   ```
+
+2. **Naming Convention**: Use meaningful hostnames and user descriptions
+3. **Timely Updates**: Add new credentials to YAML blocks immediately after acquisition
+4. **Use `is_current`**: Always mark the target currently being operated on
+5. **Leverage `props`**: Store target-specific configuration information
 
 ---
 

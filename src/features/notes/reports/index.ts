@@ -1,6 +1,6 @@
-import { Context } from "../../platform/vscode/context";
-import { logger } from "../../platform/vscode/logger";
-import { callback } from "../../shared/types";
+import { Context } from "../../../platform/vscode/context";
+import { logger } from "../../../platform/vscode/logger";
+import { callback } from "../../../shared/types";
 import * as vscode from "vscode";
 import { fs } from "./assets";
 import { createNote } from "./report";

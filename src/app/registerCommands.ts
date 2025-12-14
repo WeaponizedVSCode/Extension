@@ -19,7 +19,7 @@ import {
 } from "../features/tasks";
 import { cyberChefMagicDecoder } from "../features/decoder";
 import { rawHTTPRequest, rawHTTPRequestToCurl } from "../features/http";
-import { CreateNoteFile } from "../features/reports/createReport";
+import { CreateNoteFile } from "../features/notes/reports";
 
 export function registerCommands(context: vscode.ExtensionContext) {
   context.subscriptions.push(

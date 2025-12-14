@@ -1,10 +1,6 @@
 ---
 title: ${1:$TM_FILENAME_BASE}
 type: host
-foam_template:
-  filepath: 'hosts/$FOAM_TITLE/$FOAM_TITLE.md'
-  name: 'host'
-  description: 'note when hacking a host'
 ---
 
 ### ${1:$TM_FILENAME_BASE}

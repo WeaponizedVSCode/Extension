@@ -1,11 +1,25 @@
 import * as vscode from "vscode";
-import { dumpalluser, dumpetchosts, switchActiveHost, switchActiveUser } from "../features/targets";
+import {
+  dumpalluser,
+  dumpetchosts,
+  switchActiveHost,
+  switchActiveUser,
+} from "../features/targets";
 import { setupCommand } from "../features/setup";
 import { runCommand, copyCommand } from "../features/shell";
-import { replacer, displayVirtualContent, ReadOnlyProvider } from "../features/editor";
-import { msfvenomPayloadCreation, hashcatCracker, scanCommand } from "../features/tasks";
+import {
+  replacer,
+  displayVirtualContent,
+  ReadOnlyProvider,
+} from "../features/editor";
+import {
+  msfvenomPayloadCreation,
+  hashcatCracker,
+  scanCommand,
+} from "../features/tasks";
 import { cyberChefMagicDecoder } from "../features/decoder";
 import { rawHTTPRequest, rawHTTPRequestToCurl } from "../features/http";
+import { CreateNoteFile } from "../features/reports/createReport";
 
 export function registerCommands(context: vscode.ExtensionContext) {
   context.subscriptions.push(
@@ -17,7 +31,10 @@ export function registerCommands(context: vscode.ExtensionContext) {
       "weapon.display_virtual_content",
       displayVirtualContent
     ),
-    vscode.commands.registerCommand("weapon.magic_decoder", cyberChefMagicDecoder),
+    vscode.commands.registerCommand(
+      "weapon.magic_decoder",
+      cyberChefMagicDecoder
+    ),
     vscode.commands.registerCommand("weapon.run_command", runCommand),
     vscode.commands.registerCommand("weapon.copy", copyCommand),
     vscode.commands.registerCommand("weapon.replace_document", replacer),
@@ -39,7 +56,7 @@ export function registerCommands(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "weapon.http_raw_request_to_curl",
       rawHTTPRequestToCurl
-    )
+    ),
+    vscode.commands.registerCommand("weapon.note.creation", CreateNoteFile)
   );
 }
-

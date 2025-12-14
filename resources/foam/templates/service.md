@@ -1,10 +1,6 @@
 ---
 title: ${1:$TM_FILENAME_BASE}
 type: service
-foam_template:
-  filepath: 'services/$FOAM_TITLE/$FOAM_TITLE.md'
-  name: 'service'
-  description: 'note when access/hacking a service'
 ---
 
 ### ${1:$TM_FILENAME_BASE}

@@ -88,8 +88,8 @@
         "category": "weapon recorder"
       },
       {
-        "command": "foam-vscode.create-note-from-template",
-        "title": "Create/New note (user/host/service) from foam template",
+        "command": "weapon.note.creation",
+        "title": "Create/New note (user/host/service/finding/report) from template",
         "category": "weapon foam"
       },
       {
@@ -263,8 +263,9 @@
   "scripts": {
     "gen-blood": "ts-node ./src/snippets/source/blood/gen.ts",
     "gen-setup": "python3 ./scripts/gen-setup.py",
+    "gen-report-assets": "python3 ./scripts/gen-report-assets.py",
     "vscode:prepublish": "pnpm run package",
-    "prepare": "pnpm run gen-setup",
+    "prepare": "pnpm run gen-setup && pnpm run gen-report-assets",
     "vscode:publish": "vsce package --no-dependencies",
     "compile": "webpack",
     "watch": "webpack --watch",
@@ -287,6 +288,7 @@
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.5.0",
     "eslint": "^9.29.0",
+    "foam-vscode": "github:foambubble/foam#main&path:packages/foam-vscode",
     "ts-loader": "^9.5.2",
     "ts-morph": "^26.0.0",
     "typescript": "^5.8.3",

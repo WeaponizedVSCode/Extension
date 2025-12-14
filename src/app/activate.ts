@@ -6,6 +6,7 @@ import { registerCommands } from "./registerCommands";
 import { registerCodeLens } from "./registerCodeLens";
 import { registerTerminalUtils } from "../features/terminal";
 import { registerDefinitionProvider } from "../features/definitions";
+import { Foam } from "foam-vscode/src/core/model/foam";
 
 function dependencyCheck(): boolean {
   const foamExtension = vscode.extensions.getExtension("foam.foam-vscode");
@@ -17,6 +18,12 @@ function dependencyCheck(): boolean {
     return false;
   }
   logger.info("Foam extension is installed.");
+  if (!foamExtension.isActive) {
+    logger.info("Activating Foam extension...");
+    foamExtension.activate();
+    logger.info("Foam extension activated.");
+  }
+
   if (
     !vscode.workspace.workspaceFolders ||
     vscode.workspace.workspaceFolders.length === 0
@@ -42,5 +49,5 @@ export async function activateExtension(context: vscode.ExtensionContext) {
   registerTerminalUtils(context);
   registerDefinitionProvider(context);
   logger.info("vscode weaponized extension activated successfully.");
+  return Context;
 }
-

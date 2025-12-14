@@ -23,7 +23,7 @@ def create_value_map(root: str) -> dict[str, str]:
 def main():
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     template_root = os.path.join(repo_root, "resources", "foam", "templates")
-    output_ts = os.path.join(repo_root, "src", "features", "reports", "assets.ts")
+    output_ts = os.path.join(repo_root, "src", "features", "notes","reports", "assets.ts")
 
     value_map = create_value_map(template_root)
     with open(output_ts, "w", encoding="utf-8") as output_file:

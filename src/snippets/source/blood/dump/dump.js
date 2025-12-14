@@ -18,21 +18,21 @@ const classes = {
 };
 // export EdgeInfoComponents to window
 console.log('EdgeInfoComponents loaded successfully');
-(window as any).EdgeInfoComponents = EdgeInfoComponents; // Expose for debugging in browser console
+window.EdgeInfoComponents = EdgeInfoComponents; // Expose for debugging in browser console
 
 // grep 'swicth' will found
-./Owns/WindowsAbuse.tsx:30:    switch (targetType) {
-./Owns/LinuxAbuse.tsx:27:    switch (targetType) {
-./AllExtendedRights/WindowsAbuse.tsx:22:    switch (targetType) {
-./AllExtendedRights/LinuxAbuse.tsx:22:    switch (targetType) {
-./GenericAll/WindowsAbuse.tsx:30:    switch (targetType) {
-./GenericAll/LinuxAbuse.tsx:27:    switch (targetType) {
-./WriteDacl/WindowsAbuse.tsx:30:    switch (targetType) {
-./WriteDacl/LinuxAbuse.tsx:27:    switch (targetType) {
-./GenericWrite/WindowsAbuse.tsx:22:    switch (targetType) {
-./GenericWrite/LinuxAbuse.tsx:22:    switch (targetType) {
-./WriteOwner/WindowsAbuse.tsx:30:    switch (targetType) {
-./WriteOwner/LinuxAbuse.tsx:22:    switch (targetType) {
+// ./Owns/WindowsAbuse.tsx:30:    switch (targetType) {
+// ./Owns/LinuxAbuse.tsx:27:    switch (targetType) {
+// ./AllExtendedRights/WindowsAbuse.tsx:22:    switch (targetType) {
+// ./AllExtendedRights/LinuxAbuse.tsx:22:    switch (targetType) {
+// ./GenericAll/WindowsAbuse.tsx:30:    switch (targetType) {
+// ./GenericAll/LinuxAbuse.tsx:27:    switch (targetType) {
+// ./WriteDacl/WindowsAbuse.tsx:30:    switch (targetType) {
+// ./WriteDacl/LinuxAbuse.tsx:27:    switch (targetType) {
+// ./GenericWrite/WindowsAbuse.tsx:22:    switch (targetType) {
+// ./GenericWrite/LinuxAbuse.tsx:22:    switch (targetType) {
+// ./WriteOwner/WindowsAbuse.tsx:30:    switch (targetType) {
+// ./WriteOwner/LinuxAbuse.tsx:22:    switch (targetType) {
 
 
 // and open devtools in chrome dump in frontend console:

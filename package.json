@@ -262,7 +262,7 @@
   },
   "scripts": {
     "gen-blood": "ts-node ./src/snippets/source/blood/gen.ts",
-    "gen-setup": "python3 ./src/commands/setup/create.py",
+    "gen-setup": "python3 ./scripts/gen-setup.py",
     "vscode:prepublish": "pnpm run package",
     "prepare": "pnpm run gen-setup",
     "vscode:publish": "vsce package --no-dependencies",

@@ -194,15 +194,32 @@ function longestReferencePath(edges: readonly Edge[]): string[] {
   return pathNodeIds.map((nodeId) => nodes[nodeId]);
 }
 
-function generateFoamGraph(foam: Foam): FoamGraphModel {
+function generateFoamGraph(
+  foam: Foam,
+  log: vscode.LogOutputChannel,
+): FoamGraphModel {
   const graph: FoamGraphModel = {
     nodeInfo: {},
     edges: new Set<Edge>(),
     userEdges: new Set<Edge>(),
     hostEdges: new Set<Edge>(),
   };
+  if (!foam) {
+    log.error("Foam is not initialized.");
+    return graph;
+  }
+  if (!foam.graph) {
+    log.error("Foam graph is not initialized.");
+    log.debug("Foam is ", foam);
+    return graph;
+  }
+  if (!foam.workspace) {
+    log.error("Foam workspace is not initialized.");
+    return graph;
+  }
+  log.debug("Generating Foam graph...");
   foam.workspace.list().forEach((n: Resource) => {
-    const type = n.type === "note" ? n.properties.type ?? "note" : n.type;
+    const type = n.type === "note" ? (n.properties.type ?? "note") : n.type;
     const title = n.type === "note" ? n.title : n.uri.getBasename();
     if (type === "report") {
       return; // ignore all report type notes
@@ -271,7 +288,7 @@ function calcTheMermaid(foam: Foam, graph: FoamGraphModel): MermaidGraph {
       sourceNode.type === "host"
     ) {
       ret.hostEdges.push(
-        `${getId(sourceNode.uri)} ---> ${getId(targetNode.uri)}`
+        `${getId(sourceNode.uri)} ---> ${getId(targetNode.uri)}`,
       );
     }
   }
@@ -282,7 +299,7 @@ function calcTheMermaid(foam: Foam, graph: FoamGraphModel): MermaidGraph {
     const targetNode = graph.nodeInfo[target];
     if (sourceNode && targetNode) {
       ret.userEdges.push(
-        `${getId(sourceNode.uri)} ---> ${getId(targetNode.uri)}`
+        `${getId(sourceNode.uri)} ---> ${getId(targetNode.uri)}`,
       );
     }
   }
@@ -299,7 +316,7 @@ type: report
 
 function checkArrayDiffElements<T>(
   arr1: readonly T[],
-  arr2: readonly T[]
+  arr2: readonly T[],
 ): T[] {
   const set1 = new Set(arr1);
   const set2 = new Set(arr2);
@@ -324,7 +341,7 @@ export async function createNote({
   logger.debug("Starting to create note...");
   const getId = (uri: URI) => foam.workspace.getIdentifier(uri) || "";
   logger.trace("Foam instance:", Object.keys(foam));
-  const graph = generateFoamGraph(foam);
+  const graph = generateFoamGraph(foam, logger);
   logger.trace("Generated graph!");
 
   const userNoteList: GraphNodeInfo[] = [];
@@ -381,10 +398,10 @@ content-inline![[${getId(userMeta.uri)}]]
   const extraNotes: string[] = extraNotePath.map((path) => {
     const userMeta = graph.nodeInfo[path];
     if (!userMeta) {
-      return `> Note with path ${path} not found in graph.`;
+      return ``;
     }
     if (userMeta.type !== "user") {
-      return `> Note with path ${path} is not a user type.`;
+      return ``;
     }
     return `### User: ${userMeta.title}
 

@@ -77,8 +77,17 @@ export class Context {
         // this.context.subscriptions.push(this._foam);
       }
       logger.info("Foam extension is active.");
-      Context._foam = foamExtension.exports.foam as Foam;
-      return Context._foam;
+      try {
+        const { foam } = foamExtension.exports;
+        Context._foam = foam as Foam;
+        return Context._foam;
+      } catch (e) {
+        logger.error("Error getting foam from foam extension exports:", e);
+        vscode.window.showErrorMessage(
+          "Error getting foam from foam extension exports.",
+        );
+        return undefined;
+      }
     }
     return Context._foam;
   }

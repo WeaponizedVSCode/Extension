@@ -12,6 +12,15 @@ export {
     UserDumpFormat
 } from "./user";
 
+export {
+    Foam,
+    FoamGraph,
+    FoamWorkspace,
+    Connection,
+    Resource,
+    URI
+} from "./foam";
+
 import { UserCredential } from "./user";
 import { Host } from "./host";
 

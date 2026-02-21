@@ -6,7 +6,6 @@ import { registerCommands } from "./registerCommands";
 import { registerCodeLens } from "./registerCodeLens";
 import { registerTerminalUtils } from "../features/terminal";
 import { registerDefinitionProvider } from "../features/definitions";
-import { Foam } from "foam-vscode/src/core/model/foam";
 
 function dependencyCheck(): boolean {
   const foamExtension = vscode.extensions.getExtension("foam.foam-vscode");

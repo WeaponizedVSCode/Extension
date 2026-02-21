@@ -1,9 +1,8 @@
 import { ExtensionContext } from "vscode";
 import { UserCredential, Host } from "../../core";
-import { Foam } from "foam-vscode/src/core/model/foam";
+import type { Foam } from "../../core";
 import * as vscode from "vscode";
 import { logger } from "../../platform/vscode/logger";
-import { log } from "console";
 
 export class Context {
   private static _extContext: ExtensionContext;

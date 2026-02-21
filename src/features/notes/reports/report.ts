@@ -1,6 +1,4 @@
-import { Foam } from "foam-vscode/src/core/model/foam";
-import type { Resource } from "foam-vscode/src/core/model/note";
-import { URI } from "foam-vscode/src/core/model/uri";
+import type { Foam, Resource, URI } from "../../../core";
 import * as vscode from "vscode";
 
 type Edge = { source: string; target: string };

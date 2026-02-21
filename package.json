@@ -278,6 +278,7 @@
   },
   "devDependencies": {
     "@types/http-string-parser": "^0.0.33",
+    "@types/lodash": "^4.17.23",
     "@types/mocha": "^10.0.10",
     "@types/node": "~20.19.1",
     "@types/node-fetch": "^2.6.13",

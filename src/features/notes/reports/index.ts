@@ -35,7 +35,7 @@ export const CreateNoteFile: callback = async (args) => {
 
   // args type of notes
   let noteType: string = args.type || "";
-  logger.info(`trying to Creating note of type: ${noteType}`);
+  // logger.info(`trying to Creating note of type: ${noteType}`);
   if (
     !noteType ||
     (noteType !== "host" &&
@@ -60,7 +60,7 @@ export const CreateNoteFile: callback = async (args) => {
     return;
   }
   let noteT = noteType as "host" | "user" | "service" | "finding" | "report";
-
+  logger.info("note type: " + noteT);
   // note name
   let noteName: string = args.name || "";
   if (!noteName) {
@@ -142,7 +142,7 @@ export const CreateNoteFile: callback = async (args) => {
     await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(content));
     vscode.window.showTextDocument(uri);
     vscode.window.showInformationMessage(
-      `[Weaponized] ${noteType} note '${id}@${domain}' created successfully.`,
+      `[Weaponized] ${noteType} note '${noteName}' created successfully.`,
     );
   } catch (error) {
     logger.error(`Failed to create ${noteType} note: ${error}`);

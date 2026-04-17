@@ -45,7 +45,6 @@ export class Host {
     this.props = ihost.props ? ihost.props : {};
     this.is_current = ihost.is_current ? ihost.is_current : false;
     this.is_current_dc = ihost.is_current_dc ? ihost.is_current_dc : false;
-    this.is_dc = ihost.is_dc ? ihost.is_dc : false;
     return this;
   }
 

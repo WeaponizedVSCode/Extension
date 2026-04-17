@@ -42,11 +42,37 @@ export async function activateExtension(context: vscode.ExtensionContext) {
     return;
   }
   logger.info("Activating vscode weaponized extension...");
-  await registerTargetsSync(context);
-  registerCommands(context);
-  registerCodeLens(context);
-  registerTerminalUtils(context);
-  registerDefinitionProvider(context);
+
+  try {
+    await registerTargetsSync(context);
+  } catch (e) {
+    logger.error("Failed to register targets sync:", e);
+  }
+
+  try {
+    registerCommands(context);
+  } catch (e) {
+    logger.error("Failed to register commands:", e);
+  }
+
+  try {
+    registerCodeLens(context);
+  } catch (e) {
+    logger.error("Failed to register CodeLens:", e);
+  }
+
+  try {
+    registerTerminalUtils(context);
+  } catch (e) {
+    logger.error("Failed to register terminal utils:", e);
+  }
+
+  try {
+    registerDefinitionProvider(context);
+  } catch (e) {
+    logger.error("Failed to register definition provider:", e);
+  }
+
   logger.info("vscode weaponized extension activated successfully.");
   return Context;
 }

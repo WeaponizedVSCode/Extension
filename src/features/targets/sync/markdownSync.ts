@@ -9,7 +9,7 @@ import {
 } from "../../../core";
 import { logger } from "../../../platform/vscode/logger";
 import { Context } from "../../../platform/vscode/context";
-import { defaultCollects } from "../../../platform/vscode/defaultCollects";
+import { getDefaultCollects } from "../../../platform/vscode/defaultCollects";
 import { extractYamlBlocksByIdentity } from "../../../core/markdown";
 
 export function getCodeblock(content: string, identity: string): string[] {
@@ -83,13 +83,14 @@ export async function ProcessWorkspaceStateToEnvironmentCollects(
   logger.info(`Processing workspaceState on workspace: ${workspace.name}`);
   collection.clear();
   logger.trace(`Cleared environment variable collection for workspace: ${workspace.name}`);
-  defaultCollects["PROJECT_FOLDER"] = workspace.uri.fsPath;
+  const collects_defaults = getDefaultCollects();
+  collects_defaults["PROJECT_FOLDER"] = workspace.uri.fsPath;
 
   let ul: Collects = {};
   const old_user_list = Context.UserState;
   if (old_user_list) {
     for (const user of old_user_list) {
-      var uc = user.exportEnvironmentCollects();
+      const uc = user.exportEnvironmentCollects();
       ul = mergeCollects(ul, uc);
     }
   }
@@ -102,7 +103,7 @@ export async function ProcessWorkspaceStateToEnvironmentCollects(
     }
   }
 
-  const collects = mergeCollects(ul, hl, defaultCollects);
+  const collects = mergeCollects(ul, hl, collects_defaults);
   for (const key in collects) {
     logger.trace(
       `Setting environment variable into collections: ${key} => ${collects[key]}`

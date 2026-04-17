@@ -11,6 +11,7 @@ import {
 } from "./recorder";
 import { TerminalBridge } from "./bridge";
 import * as vscode from "vscode";
+import { logger } from "../../platform/vscode/logger";
 
 export function registerTerminalUtils(context: vscode.ExtensionContext) {
   activate();
@@ -20,7 +21,7 @@ export function registerTerminalUtils(context: vscode.ExtensionContext) {
   if (workspaceFolders) {
     for (const folder of workspaceFolders) {
       const bridge = new TerminalBridge(folder);
-      bridge.activate();
+      bridge.activate().catch((e) => logger.error("TerminalBridge activation failed", e));
       context.subscriptions.push({ dispose: () => bridge.dispose() });
     }
   }

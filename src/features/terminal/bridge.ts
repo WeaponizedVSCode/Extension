@@ -1,6 +1,4 @@
 import * as vscode from "vscode";
-import * as fs from "fs";
-import * as path from "path";
 import { logger } from "../../platform/vscode/logger";
 
 interface TerminalInfo {
@@ -8,28 +6,31 @@ interface TerminalInfo {
   name: string;
   isActive: boolean;
   cwd?: string;
-  lastCommand?: string;
-  lastExitCode?: number;
 }
 
 const MAX_OUTPUT_BYTES = 64 * 1024; // 64KB per terminal log
+const FLUSH_INTERVAL_MS = 500;
+
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
 
 export class TerminalBridge {
-  private stateDir: string;
-  private terminalsDir: string;
+  private stateDir: vscode.Uri;
+  private terminalsDir: vscode.Uri;
   private disposables: vscode.Disposable[] = [];
-  private terminalMap = new Map<vscode.Terminal, string>(); // terminal → id
+  private terminalMap = new Map<vscode.Terminal, string>();
   private nextId = 1;
-  private inputWatcher: fs.FSWatcher | undefined;
+  private outputBuffers = new Map<string, string>();
+  private flushTimer: ReturnType<typeof setInterval> | undefined;
 
   constructor(workspace: vscode.WorkspaceFolder) {
-    this.stateDir = path.join(workspace.uri.fsPath, ".weapon-state");
-    this.terminalsDir = path.join(this.stateDir, "terminals");
+    this.stateDir = vscode.Uri.joinPath(workspace.uri, ".weapon-state");
+    this.terminalsDir = vscode.Uri.joinPath(this.stateDir, "terminals");
   }
 
-  activate(): void {
+  async activate(): Promise<void> {
     // Ensure directories exist
-    fs.mkdirSync(this.terminalsDir, { recursive: true });
+    await vscode.workspace.fs.createDirectory(this.terminalsDir);
 
     // Track existing terminals
     for (const t of vscode.window.terminals) {
@@ -53,10 +54,10 @@ export class TerminalBridge {
         const id = this.terminalMap.get(event.terminal);
         if (!id) return;
         const cmd = event.execution.commandLine.value;
-        this.appendOutput(id, `\n$ ${cmd}\n`);
+        this.bufferOutput(id, `\n$ ${cmd}\n`);
         try {
           for await (const chunk of event.execution.read()) {
-            this.appendOutput(id, chunk);
+            this.bufferOutput(id, chunk);
           }
         } catch {
           // terminal may have closed
@@ -69,12 +70,14 @@ export class TerminalBridge {
       vscode.window.onDidEndTerminalShellExecution((event) => {
         const id = this.terminalMap.get(event.terminal);
         if (!id) return;
-        // Update terminal list to reflect exit code changes
         this.writeTerminalList();
       })
     );
 
-    // Watch for incoming command requests
+    // Flush output buffers periodically
+    this.flushTimer = setInterval(() => this.flushAllBuffers(), FLUSH_INTERVAL_MS);
+
+    // Watch for incoming command requests via vscode FileSystemWatcher
     this.watchForInput();
     this.writeTerminalList();
     logger.info("TerminalBridge activated");
@@ -90,12 +93,9 @@ export class TerminalBridge {
     const id = this.terminalMap.get(terminal);
     this.terminalMap.delete(terminal);
     if (id) {
-      const logPath = path.join(this.terminalsDir, `${id}.log`);
-      try {
-        fs.unlinkSync(logPath);
-      } catch {
-        /* ignore */
-      }
+      this.outputBuffers.delete(id);
+      const logUri = vscode.Uri.joinPath(this.terminalsDir, `${id}.log`);
+      vscode.workspace.fs.delete(logUri).then(undefined, () => {});
     }
     this.writeTerminalList();
   }
@@ -110,51 +110,61 @@ export class TerminalBridge {
         cwd: terminal.shellIntegration?.cwd?.fsPath,
       });
     }
-    try {
-      fs.writeFileSync(
-        path.join(this.stateDir, "terminals.json"),
-        JSON.stringify(list, null, 2)
-      );
-    } catch (e) {
-      logger.error("Failed to write terminals.json", e);
+    const uri = vscode.Uri.joinPath(this.stateDir, "terminals.json");
+    vscode.workspace.fs
+      .writeFile(uri, encoder.encode(JSON.stringify(list, null, 2)))
+      .then(undefined, (e) => logger.error("Failed to write terminals.json", e));
+  }
+
+  private bufferOutput(id: string, text: string): void {
+    const existing = this.outputBuffers.get(id) ?? "";
+    this.outputBuffers.set(id, existing + text);
+  }
+
+  private async flushAllBuffers(): Promise<void> {
+    for (const [id, pending] of this.outputBuffers) {
+      if (!pending) continue;
+      this.outputBuffers.set(id, "");
+      await this.appendOutput(id, pending);
     }
   }
 
-  private appendOutput(id: string, text: string): void {
-    const logPath = path.join(this.terminalsDir, `${id}.log`);
+  private async appendOutput(id: string, text: string): Promise<void> {
+    const logUri = vscode.Uri.joinPath(this.terminalsDir, `${id}.log`);
     try {
-      fs.appendFileSync(logPath, text);
-      // Truncate if too large (keep tail)
-      const stat = fs.statSync(logPath);
-      if (stat.size > MAX_OUTPUT_BYTES) {
-        const content = fs.readFileSync(logPath, "utf-8");
-        fs.writeFileSync(logPath, content.slice(-MAX_OUTPUT_BYTES));
+      let existing = "";
+      try {
+        const data = await vscode.workspace.fs.readFile(logUri);
+        existing = decoder.decode(data);
+      } catch {
+        // file doesn't exist yet
       }
+      let content = existing + text;
+      // Truncate if too large (keep tail)
+      if (encoder.encode(content).byteLength > MAX_OUTPUT_BYTES) {
+        content = content.slice(-MAX_OUTPUT_BYTES);
+      }
+      await vscode.workspace.fs.writeFile(logUri, encoder.encode(content));
     } catch {
       // ignore write errors
     }
   }
 
   private watchForInput(): void {
-    const inputFile = path.join(this.stateDir, "terminal-input.json");
-    try {
-      this.inputWatcher = fs.watch(this.stateDir, (_, filename) => {
-        if (filename === "terminal-input.json") {
-          this.processInput(inputFile);
-        }
-      });
-    } catch {
-      // fallback: poll every 2s
-      const interval = setInterval(() => this.processInput(inputFile), 2000);
-      this.disposables.push({ dispose: () => clearInterval(interval) });
-    }
+    const pattern = new vscode.RelativePattern(this.stateDir, "terminal-input.json");
+    const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+    watcher.onDidCreate(() => this.processInput());
+    watcher.onDidChange(() => this.processInput());
+    this.disposables.push(watcher);
   }
 
-  private processInput(inputFile: string): void {
+  private async processInput(): Promise<void> {
+    const inputUri = vscode.Uri.joinPath(this.stateDir, "terminal-input.json");
     let raw: string;
     try {
-      raw = fs.readFileSync(inputFile, "utf-8");
-      fs.unlinkSync(inputFile); // consume the request
+      const data = await vscode.workspace.fs.readFile(inputUri);
+      raw = decoder.decode(data);
+      await vscode.workspace.fs.delete(inputUri);
     } catch {
       return; // file doesn't exist or already consumed
     }
@@ -165,9 +175,7 @@ export class TerminalBridge {
       if (terminal) {
         terminal.sendText(req.command);
         terminal.show(true);
-        logger.info(
-          `Sent command to terminal ${req.terminalId}: ${req.command}`
-        );
+        logger.info(`Sent command to terminal ${req.terminalId}: ${req.command}`);
       } else {
         logger.error(`Terminal ${req.terminalId} not found`);
       }
@@ -188,7 +196,15 @@ export class TerminalBridge {
   }
 
   dispose(): void {
-    this.inputWatcher?.close();
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+    }
+    // Final flush
+    for (const [id, pending] of this.outputBuffers) {
+      if (pending) {
+        this.appendOutput(id, pending);
+      }
+    }
     for (const d of this.disposables) {
       d.dispose();
     }

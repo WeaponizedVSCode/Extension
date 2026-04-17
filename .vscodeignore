@@ -1,0 +1,31 @@
+# Source code (snippets are needed by package.json contributes)
+src/**
+!src/snippets/source/**
+
+# Build configs and tools
+webpack.config.js
+webpack.config.mcp.js
+tsconfig.json
+src/mcp/tsconfig.json
+.eslintrc.json
+.prettierrc
+
+# Documentation
+docs/**
+
+# Scripts
+scripts/**
+
+# Tests
+out/**
+.vscode-test/**
+
+# Dev and CI files
+.github/**
+.vscode/**
+node_modules/**
+
+# Git and misc
+.gitignore
+.gitattributes
+*.map

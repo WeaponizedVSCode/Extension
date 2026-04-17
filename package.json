@@ -300,7 +300,7 @@
     "gen-blood": "ts-node ./src/snippets/source/blood/gen.ts",
     "gen-setup": "python3 ./scripts/gen-setup.py",
     "gen-report-assets": "python3 ./scripts/gen-report-assets.py",
-    "vscode:prepublish": "pnpm run package",
+    "vscode:prepublish": "pnpm run package && pnpm run package:mcp",
     "prepare": "pnpm run gen-setup && pnpm run gen-report-assets",
     "vscode:publish": "vsce package --no-dependencies",
     "compile": "webpack",

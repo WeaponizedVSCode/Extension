@@ -7,6 +7,7 @@ webpack.config.js
 webpack.config.mcp.js
 tsconfig.json
 src/mcp/tsconfig.json
+eslint.config.mjs
 .eslintrc.json
 .prettierrc
 
@@ -19,6 +20,7 @@ scripts/**
 # Tests
 out/**
 .vscode-test/**
+.vscode-test.mjs
 
 # Dev and CI files
 .github/**
@@ -28,4 +30,8 @@ node_modules/**
 # Git and misc
 .gitignore
 .gitattributes
-*.map
+**/*.map
+pnpm-lock.yaml
+AGENTS.md
+refactor-proposal.md
+vsc-extension-quickstart.md

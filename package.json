@@ -112,6 +112,12 @@
           "default": true,
           "description": "Enable AI features: @weapon Copilot Chat participant and MCP server integration (.weapon-state/ sync). Disable to reduce extension footprint if you don't use AI assistants. Requires reload."
         },
+        "weaponized.mcp.port": {
+          "type": "integer",
+          "default": 25789,
+          "format": "port",
+          "description": "Preferred port for the embedded MCP HTTP server (http://127.0.0.1:<port>/mcp). If the port is already in use, the OS will assign a free port automatically and mcp.json will be updated. Requires reload."
+        },
         "weaponized.lhost": {
           "type": "string",
           "default": "$LHOST",
@@ -305,7 +311,7 @@
     "gen-blood": "ts-node ./src/snippets/source/blood/gen.ts",
     "gen-setup": "python3 ./scripts/gen-setup.py",
     "gen-report-assets": "python3 ./scripts/gen-report-assets.py",
-    "vscode:prepublish": "pnpm run package && pnpm run package:mcp",
+    "vscode:prepublish": "pnpm run package",
     "prepare": "pnpm run gen-setup && pnpm run gen-report-assets",
     "vscode:publish": "vsce package --no-dependencies",
     "compile": "webpack",
@@ -316,9 +322,7 @@
     "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
-    "test:unit": "vscode-test --label unit",
-    "compile:mcp": "webpack --config webpack.config.mcp.js",
-    "package:mcp": "webpack --config webpack.config.mcp.js --mode production --devtool hidden-source-map"
+    "test:unit": "vscode-test --label unit"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

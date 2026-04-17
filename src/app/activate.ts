@@ -7,7 +7,13 @@ import { registerCodeLens } from "./registerCodeLens";
 import { registerTerminalUtils, registerMcpBridge } from "../features/terminal";
 import { registerDefinitionProvider } from "../features/definitions";
 import { registerAIFeatures } from "../features/ai";
-import { setExtensionContext as setMcpContext } from "../features/mcp/install";
+import {
+  setExtensionContext as setMcpContext,
+  setEmbeddedMcpServer,
+  autoUpdateMcpJson,
+} from "../features/mcp/install";
+import { EmbeddedMcpServer } from "../features/mcp/httpServer";
+import { DEFAULT_MCP_PORT } from "../features/mcp/portManager";
 
 async function dependencyCheck(): Promise<boolean> {
   const foamExtension = vscode.extensions.getExtension("foam.foam-vscode");
@@ -79,10 +85,25 @@ export async function activateExtension(context: vscode.ExtensionContext) {
   }
 
   if (config.get<boolean>("ai.enabled", true)) {
+    let terminalBridge;
     try {
-      registerMcpBridge(context);
+      terminalBridge = registerMcpBridge(context);
     } catch (e) {
       logger.error("Failed to register MCP bridge:", e);
+    }
+
+    if (terminalBridge) {
+      try {
+        const preferredPort = config.get<number>("mcp.port", DEFAULT_MCP_PORT);
+        const mcpServer = new EmbeddedMcpServer();
+        const port = await mcpServer.start(terminalBridge, preferredPort);
+        setEmbeddedMcpServer(mcpServer);
+        context.subscriptions.push({ dispose: () => mcpServer.stop() });
+        await autoUpdateMcpJson(port);
+        logger.info(`Embedded MCP server started on port ${port}`);
+      } catch (e) {
+        logger.error("Failed to start embedded MCP server:", e);
+      }
     }
 
     try {

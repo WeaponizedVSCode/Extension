@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { logger } from "../../platform/vscode/logger";
 
-interface TerminalInfo {
+export interface TerminalInfo {
   id: string;
   name: string;
   isActive: boolean;
@@ -23,8 +23,8 @@ export class TerminalBridge {
   private outputBuffers = new Map<string, string>();
   private flushTimer: ReturnType<typeof setInterval> | undefined;
 
-  constructor(workspace: vscode.WorkspaceFolder) {
-    this.stateDir = vscode.Uri.joinPath(workspace.uri, ".weapon-state");
+  constructor(stateDir: vscode.Uri) {
+    this.stateDir = stateDir;
     this.terminalsDir = vscode.Uri.joinPath(this.stateDir, "terminals");
   }
 
@@ -44,9 +44,6 @@ export class TerminalBridge {
     this.disposables.push(
       vscode.window.onDidCloseTerminal((t) => this.untrackTerminal(t))
     );
-    this.disposables.push(
-      vscode.window.onDidChangeActiveTerminal(() => this.writeTerminalList())
-    );
 
     // Capture command output via shell integration
     this.disposables.push(
@@ -62,31 +59,18 @@ export class TerminalBridge {
         } catch {
           // terminal may have closed
         }
-        this.writeTerminalList();
-      })
-    );
-
-    this.disposables.push(
-      vscode.window.onDidEndTerminalShellExecution((event) => {
-        const id = this.terminalMap.get(event.terminal);
-        if (!id) return;
-        this.writeTerminalList();
       })
     );
 
     // Flush output buffers periodically
     this.flushTimer = setInterval(() => this.flushAllBuffers(), FLUSH_INTERVAL_MS);
 
-    // Watch for incoming command requests via vscode FileSystemWatcher
-    this.watchForInput();
-    this.writeTerminalList();
     logger.info("TerminalBridge activated");
   }
 
   private trackTerminal(terminal: vscode.Terminal): void {
     const id = String(this.nextId++);
     this.terminalMap.set(terminal, id);
-    this.writeTerminalList();
   }
 
   private untrackTerminal(terminal: vscode.Terminal): void {
@@ -97,10 +81,10 @@ export class TerminalBridge {
       const logUri = vscode.Uri.joinPath(this.terminalsDir, `${id}.log`);
       vscode.workspace.fs.delete(logUri).then(undefined, () => {});
     }
-    this.writeTerminalList();
   }
 
-  private writeTerminalList(): void {
+  /** Returns current terminal list from in-memory state. */
+  getTerminals(): TerminalInfo[] {
     const list: TerminalInfo[] = [];
     for (const [terminal, id] of this.terminalMap) {
       list.push({
@@ -110,10 +94,46 @@ export class TerminalBridge {
         cwd: terminal.shellIntegration?.cwd?.fsPath,
       });
     }
-    const uri = vscode.Uri.joinPath(this.stateDir, "terminals.json");
-    vscode.workspace.fs
-      .writeFile(uri, encoder.encode(JSON.stringify(list, null, 2)))
-      .then(undefined, (e) => logger.error("Failed to write terminals.json", e));
+    return list;
+  }
+
+  /** Reads the last `lines` lines of output for a terminal (by ID or name). */
+  async getTerminalOutput(id: string, lines: number = 50): Promise<string> {
+    let logUri = vscode.Uri.joinPath(this.terminalsDir, `${id}.log`);
+    let found = true;
+    try {
+      await vscode.workspace.fs.stat(logUri);
+    } catch {
+      found = false;
+      for (const [terminal, tid] of this.terminalMap) {
+        if (terminal.name === id) {
+          logUri = vscode.Uri.joinPath(this.terminalsDir, `${tid}.log`);
+          found = true;
+          break;
+        }
+      }
+    }
+    if (!found) return `No output found for terminal ${id}`;
+    try {
+      const data = await vscode.workspace.fs.readFile(logUri);
+      const content = decoder.decode(data);
+      return content.split("\n").slice(-lines).join("\n");
+    } catch {
+      return `No output found for terminal ${id}`;
+    }
+  }
+
+  /** Sends a command directly to a terminal without any file I/O. */
+  sendCommandDirect(id: string, command: string): boolean {
+    const terminal = this.findTerminal(id);
+    if (terminal) {
+      terminal.sendText(command);
+      terminal.show(true);
+      logger.info(`Sent command to terminal ${id}: ${command}`);
+      return true;
+    }
+    logger.error(`Terminal ${id} not found`);
+    return false;
   }
 
   private bufferOutput(id: string, text: string): void {
@@ -147,40 +167,6 @@ export class TerminalBridge {
       await vscode.workspace.fs.writeFile(logUri, encoder.encode(content));
     } catch {
       // ignore write errors
-    }
-  }
-
-  private watchForInput(): void {
-    const pattern = new vscode.RelativePattern(this.stateDir, "terminal-input.json");
-    const watcher = vscode.workspace.createFileSystemWatcher(pattern);
-    watcher.onDidCreate(() => this.processInput());
-    watcher.onDidChange(() => this.processInput());
-    this.disposables.push(watcher);
-  }
-
-  private async processInput(): Promise<void> {
-    const inputUri = vscode.Uri.joinPath(this.stateDir, "terminal-input.json");
-    let raw: string;
-    try {
-      const data = await vscode.workspace.fs.readFile(inputUri);
-      raw = decoder.decode(data);
-      await vscode.workspace.fs.delete(inputUri);
-    } catch {
-      return; // file doesn't exist or already consumed
-    }
-
-    try {
-      const req = JSON.parse(raw) as { terminalId: string; command: string };
-      const terminal = this.findTerminal(req.terminalId);
-      if (terminal) {
-        terminal.sendText(req.command);
-        terminal.show(true);
-        logger.info(`Sent command to terminal ${req.terminalId}: ${req.command}`);
-      } else {
-        logger.error(`Terminal ${req.terminalId} not found`);
-      }
-    } catch (e) {
-      logger.error("Failed to process terminal input", e);
     }
   }
 

@@ -45,13 +45,14 @@ export function registerTerminalUtils(context: vscode.ExtensionContext) {
   );
 }
 
-export function registerMcpBridge(context: vscode.ExtensionContext) {
-  const workspaceFolders = vscode.workspace.workspaceFolders;
-  if (workspaceFolders) {
-    for (const folder of workspaceFolders) {
-      const bridge = new TerminalBridge(folder);
-      bridge.activate().catch((e) => logger.error("TerminalBridge activation failed", e));
-      context.subscriptions.push({ dispose: () => bridge.dispose() });
-    }
+export function registerMcpBridge(context: vscode.ExtensionContext): TerminalBridge | undefined {
+  const stateDir = context.storageUri;
+  if (!stateDir) {
+    logger.warn("No storageUri available, skipping MCP bridge registration");
+    return undefined;
   }
+  const bridge = new TerminalBridge(stateDir);
+  bridge.activate().catch((e) => logger.error("TerminalBridge activation failed", e));
+  context.subscriptions.push({ dispose: () => bridge.dispose() });
+  return bridge;
 }

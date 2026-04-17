@@ -4,9 +4,7 @@ src/**
 
 # Build configs and tools
 webpack.config.js
-webpack.config.mcp.js
 tsconfig.json
-src/mcp/tsconfig.json
 eslint.config.mjs
 .eslintrc.json
 .prettierrc

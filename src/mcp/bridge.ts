@@ -1,6 +1,15 @@
 import * as fs from "fs";
 import * as path from "path";
 
+export interface TerminalInfo {
+  id: string;
+  name: string;
+  isActive: boolean;
+  cwd?: string;
+  lastCommand?: string;
+  lastExitCode?: number;
+}
+
 export interface BridgeHost {
   hostname: string;
   ip: string;
@@ -70,5 +79,37 @@ export class StateBridge {
 
   getRedactedUsers(): BridgeUser[] {
     return this.getUsers().map((u) => this.redactUser(u));
+  }
+
+  getTerminals(): TerminalInfo[] {
+    return this.readJSON<TerminalInfo[]>("terminals.json") ?? [];
+  }
+
+  getTerminalOutput(id: string, lines: number = 50): string {
+    // Try reading by ID first, then by name lookup
+    let logPath = path.join(this.stateDir, "terminals", `${id}.log`);
+    if (!fs.existsSync(logPath)) {
+      // Try to find by terminal name
+      const terminals = this.getTerminals();
+      const match = terminals.find((t) => t.name === id);
+      if (match) {
+        logPath = path.join(this.stateDir, "terminals", `${match.id}.log`);
+      }
+    }
+    try {
+      const content = fs.readFileSync(logPath, "utf-8");
+      const allLines = content.split("\n");
+      return allLines.slice(-lines).join("\n");
+    } catch {
+      return `No output found for terminal ${id}`;
+    }
+  }
+
+  sendCommand(terminalId: string, command: string): void {
+    const inputFile = path.join(this.stateDir, "terminal-input.json");
+    fs.writeFileSync(
+      inputFile,
+      JSON.stringify({ terminalId, command }, null, 2)
+    );
   }
 }

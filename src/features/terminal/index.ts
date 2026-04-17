@@ -9,10 +9,22 @@ import {
   startTempTerminalRecord,
   stopTempTerminalForCapture,
 } from "./recorder";
+import { TerminalBridge } from "./bridge";
 import * as vscode from "vscode";
 
 export function registerTerminalUtils(context: vscode.ExtensionContext) {
   activate();
+
+  // Activate TerminalBridge for each workspace folder
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (workspaceFolders) {
+    for (const folder of workspaceFolders) {
+      const bridge = new TerminalBridge(folder);
+      bridge.activate();
+      context.subscriptions.push({ dispose: () => bridge.dispose() });
+    }
+  }
+
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "weaponized.terminal-logger.register",

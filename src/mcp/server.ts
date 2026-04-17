@@ -104,6 +104,62 @@ server.tool(
   })
 );
 
+// --- Terminal Tools ---
+
+server.tool(
+  "list_terminals",
+  "List all open VS Code terminals",
+  {},
+  async () => ({
+    content: [
+      {
+        type: "text" as const,
+        text: JSON.stringify(bridge.getTerminals(), null, 2),
+      },
+    ],
+  })
+);
+
+server.tool(
+  "read_terminal",
+  "Read recent output from a VS Code terminal",
+  {
+    terminalId: z.string().describe("Terminal ID or name"),
+    lines: z
+      .number()
+      .optional()
+      .describe("Number of trailing lines to return (default: 50)"),
+  },
+  async ({ terminalId, lines }) => ({
+    content: [
+      {
+        type: "text" as const,
+        text: bridge.getTerminalOutput(terminalId, lines ?? 50),
+      },
+    ],
+  })
+);
+
+server.tool(
+  "send_to_terminal",
+  "Send a command to a VS Code terminal",
+  {
+    terminalId: z.string().describe("Terminal ID or name"),
+    command: z.string().describe("Command to execute"),
+  },
+  async ({ terminalId, command }) => {
+    bridge.sendCommand(terminalId, command);
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: `Command sent to terminal ${terminalId}: ${command}`,
+        },
+      ],
+    };
+  }
+);
+
 // --- Prompt Templates ---
 
 server.prompt(

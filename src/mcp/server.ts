@@ -38,7 +38,7 @@ server.resource("users-list", "users://list", async () => ({
     {
       uri: "users://list",
       mimeType: "application/json",
-      text: JSON.stringify(bridge.getRedactedUsers(), null, 2),
+      text: JSON.stringify(bridge.getUsers(), null, 2),
     },
   ],
 }));
@@ -48,36 +48,20 @@ server.resource("users-current", "users://current", async () => ({
     {
       uri: "users://current",
       mimeType: "application/json",
-      text: JSON.stringify(
-        bridge.getCurrentUser()
-          ? bridge.redactUser(bridge.getCurrentUser()!)
-          : null,
-        null,
-        2
-      ),
+      text: JSON.stringify(bridge.getCurrentUser() ?? null, null, 2),
     },
   ],
 }));
 
-server.resource("env-variables", "env://variables", async () => {
-  const vars = bridge.getEnvVars();
-  // Redact sensitive env vars
-  const redacted = { ...vars };
-  for (const key of ["PASS", "PASSWORD", "NT_HASH"]) {
-    if (redacted[key]) {
-      redacted[key] = "[REDACTED]";
-    }
-  }
-  return {
-    contents: [
-      {
-        uri: "env://variables",
-        mimeType: "application/json",
-        text: JSON.stringify(redacted, null, 2),
-      },
-    ],
-  };
-});
+server.resource("env-variables", "env://variables", async () => ({
+  contents: [
+    {
+      uri: "env://variables",
+      mimeType: "application/json",
+      text: JSON.stringify(bridge.getEnvVars(), null, 2),
+    },
+  ],
+}));
 
 // --- Read-only Tools ---
 
@@ -92,13 +76,13 @@ server.tool("get_targets", "Get all discovered hosts/targets", {}, async () => (
 
 server.tool(
   "get_credentials",
-  "Get all discovered credentials (redacted)",
+  "Get all discovered credentials",
   {},
   async () => ({
     content: [
       {
         type: "text" as const,
-        text: JSON.stringify(bridge.getRedactedUsers(), null, 2),
+        text: JSON.stringify(bridge.getUsers(), null, 2),
       },
     ],
   })
@@ -194,7 +178,7 @@ server.prompt(
           text:
             `You are a penetration testing assistant. Based on the current engagement state:\n\n` +
             `Hosts: ${JSON.stringify(bridge.getHosts().map((h) => ({ hostname: h.hostname, ip: h.ip, is_dc: h.is_dc })))}\n` +
-            `Users: ${JSON.stringify(bridge.getRedactedUsers().map((u) => ({ user: u.user, login: u.login, has_password: !!u.password, has_hash: u.nt_hash !== "ffffffffffffffffffffffffffffffff" })))}\n\n` +
+            `Users: ${JSON.stringify(bridge.getUsers().map((u) => ({ user: u.user, login: u.login, password: u.password, nt_hash: u.nt_hash })))}\n\n` +
             `Suggest the next 3-5 actions with exact commands.`,
         },
       },

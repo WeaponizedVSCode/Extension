@@ -93,6 +93,11 @@
         "category": "weapon foam"
       },
       {
+        "command": "weapon.mcp.install",
+        "title": "Install MCP server to workspace",
+        "category": "weapon management"
+      },
+      {
         "command": "foam-vscode.show-graph",
         "title": "Show Foam Graph",
         "category": "weapon foam"

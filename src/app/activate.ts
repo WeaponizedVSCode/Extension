@@ -7,6 +7,7 @@ import { registerCodeLens } from "./registerCodeLens";
 import { registerTerminalUtils } from "../features/terminal";
 import { registerDefinitionProvider } from "../features/definitions";
 import { registerAIFeatures } from "../features/ai";
+import { setExtensionContext as setMcpContext } from "../features/mcp/install";
 
 async function dependencyCheck(): Promise<boolean> {
   const foamExtension = vscode.extensions.getExtension("foam.foam-vscode");
@@ -39,6 +40,7 @@ async function dependencyCheck(): Promise<boolean> {
 
 export async function activateExtension(context: vscode.ExtensionContext) {
   Context.context = context;
+  setMcpContext(context);
   if (!(await dependencyCheck())) {
     return;
   }

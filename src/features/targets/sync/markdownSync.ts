@@ -11,6 +11,7 @@ import { logger } from "../../../platform/vscode/logger";
 import { Context } from "../../../platform/vscode/context";
 import { getDefaultCollects } from "../../../platform/vscode/defaultCollects";
 import { extractYamlBlocksByIdentity } from "../../../core/markdown";
+import { writeStateForMCP } from "./stateWriter";
 
 export function getCodeblock(content: string, identity: string): string[] {
   return extractYamlBlocksByIdentity(content, identity).map((b) => b.content);
@@ -110,6 +111,7 @@ export async function ProcessWorkspaceStateToEnvironmentCollects(
     );
     collection.replace(key, collects[key]);
   }
+  await writeStateForMCP(workspace);
 }
 
 export async function ProcessMarkdownFileToWorkspaceState(file: vscode.Uri) {

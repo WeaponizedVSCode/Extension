@@ -306,9 +306,12 @@
     "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
-    "test:unit": "vscode-test --label unit"
+    "test:unit": "vscode-test --label unit",
+    "compile:mcp": "webpack --config webpack.config.mcp.js",
+    "package:mcp": "webpack --config webpack.config.mcp.js --mode production --devtool hidden-source-map"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@types/http-string-parser": "^0.0.33",
     "@types/lodash": "^4.17.23",
     "@types/mocha": "^10.0.10",
@@ -326,7 +329,8 @@
     "ts-morph": "^26.0.0",
     "typescript": "^5.8.3",
     "webpack": "^5.99.9",
-    "webpack-cli": "^6.0.1"
+    "webpack-cli": "^6.0.1",
+    "zod": "^4.3.6"
   },
   "dependencies": {
     "fetch-to-curl": "^0.6.0",

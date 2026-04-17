@@ -6,6 +6,7 @@ import { registerCommands } from "./registerCommands";
 import { registerCodeLens } from "./registerCodeLens";
 import { registerTerminalUtils } from "../features/terminal";
 import { registerDefinitionProvider } from "../features/definitions";
+import { registerAIFeatures } from "../features/ai";
 
 async function dependencyCheck(): Promise<boolean> {
   const foamExtension = vscode.extensions.getExtension("foam.foam-vscode");
@@ -71,6 +72,12 @@ export async function activateExtension(context: vscode.ExtensionContext) {
     registerDefinitionProvider(context);
   } catch (e) {
     logger.error("Failed to register definition provider:", e);
+  }
+
+  try {
+    registerAIFeatures(context);
+  } catch (e) {
+    logger.error("Failed to register AI features:", e);
   }
 
   logger.info("vscode weaponized extension activated successfully.");

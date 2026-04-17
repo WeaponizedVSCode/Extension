@@ -258,6 +258,37 @@
         "language": "markdown",
         "path": "src/snippets/source/weapon/weapon.json"
       }
+    ],
+    "chatParticipants": [
+      {
+        "id": "weapon.chat",
+        "fullName": "Weaponized Assistant",
+        "name": "weapon",
+        "description": "AI assistant for penetration testing workflows. Aware of your current targets, credentials, and engagement notes.",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "analyze",
+            "description": "Analyze tool output (nmap, BloodHound, etc.)"
+          },
+          {
+            "name": "suggest",
+            "description": "Suggest next steps for the current target"
+          },
+          {
+            "name": "generate",
+            "description": "Generate a command from natural language"
+          },
+          {
+            "name": "report",
+            "description": "Summarize engagement findings"
+          },
+          {
+            "name": "explain",
+            "description": "Explain a concept, tool, or technique"
+          }
+        ]
+      }
     ]
   },
   "scripts": {

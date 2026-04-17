@@ -52,7 +52,7 @@ export class Context {
     this.context.workspaceState.update("hosts", hs);
   }
 
-  public async Foam(): Promise<Foam | undefined> {
+  public static async Foam(): Promise<Foam | undefined> {
     if (!Context._foam) {
       const foamExtension = vscode.extensions.getExtension("foam.foam-vscode");
       if (!foamExtension) {

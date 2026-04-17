@@ -107,6 +107,11 @@
       "title": "weaponized vscode Extension Settings",
       "type": "object",
       "properties": {
+        "weaponized.ai.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable AI features: @weapon Copilot Chat participant and MCP server integration (.weapon-state/ sync). Disable to reduce extension footprint if you don't use AI assistants. Requires reload."
+        },
         "weaponized.lhost": {
           "type": "string",
           "default": "$LHOST",

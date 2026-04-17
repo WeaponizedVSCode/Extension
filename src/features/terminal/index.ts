@@ -16,16 +16,6 @@ import { logger } from "../../platform/vscode/logger";
 export function registerTerminalUtils(context: vscode.ExtensionContext) {
   activate();
 
-  // Activate TerminalBridge for each workspace folder
-  const workspaceFolders = vscode.workspace.workspaceFolders;
-  if (workspaceFolders) {
-    for (const folder of workspaceFolders) {
-      const bridge = new TerminalBridge(folder);
-      bridge.activate().catch((e) => logger.error("TerminalBridge activation failed", e));
-      context.subscriptions.push({ dispose: () => bridge.dispose() });
-    }
-  }
-
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "weaponized.terminal-logger.register",
@@ -53,4 +43,15 @@ export function registerTerminalUtils(context: vscode.ExtensionContext) {
       WebDeliveryWeaponizedTerminalProvider
     )
   );
+}
+
+export function registerMcpBridge(context: vscode.ExtensionContext) {
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (workspaceFolders) {
+    for (const folder of workspaceFolders) {
+      const bridge = new TerminalBridge(folder);
+      bridge.activate().catch((e) => logger.error("TerminalBridge activation failed", e));
+      context.subscriptions.push({ dispose: () => bridge.dispose() });
+    }
+  }
 }

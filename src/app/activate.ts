@@ -4,7 +4,7 @@ import { Context } from "../platform/vscode/context";
 import { registerTargetsSync } from "../features/targets/sync";
 import { registerCommands } from "./registerCommands";
 import { registerCodeLens } from "./registerCodeLens";
-import { registerTerminalUtils } from "../features/terminal";
+import { registerTerminalUtils, registerMcpBridge } from "../features/terminal";
 import { registerDefinitionProvider } from "../features/definitions";
 import { registerAIFeatures } from "../features/ai";
 import { setExtensionContext as setMcpContext } from "../features/mcp/install";
@@ -46,6 +46,8 @@ export async function activateExtension(context: vscode.ExtensionContext) {
   }
   logger.info("Activating vscode weaponized extension...");
 
+  const config = vscode.workspace.getConfiguration("weaponized");
+
   try {
     await registerTargetsSync(context);
   } catch (e) {
@@ -76,10 +78,20 @@ export async function activateExtension(context: vscode.ExtensionContext) {
     logger.error("Failed to register definition provider:", e);
   }
 
-  try {
-    registerAIFeatures(context);
-  } catch (e) {
-    logger.error("Failed to register AI features:", e);
+  if (config.get<boolean>("ai.enabled", true)) {
+    try {
+      registerMcpBridge(context);
+    } catch (e) {
+      logger.error("Failed to register MCP bridge:", e);
+    }
+
+    try {
+      registerAIFeatures(context);
+    } catch (e) {
+      logger.error("Failed to register AI features:", e);
+    }
+  } else {
+    logger.info("AI and MCP features disabled by weaponized.ai.enabled setting.");
   }
 
   logger.info("vscode weaponized extension activated successfully.");

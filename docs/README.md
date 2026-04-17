@@ -1,5 +1,7 @@
 # Documentation
 
+**[中文版本](./README_CN.md)**
+
 Feature documentation for the Weaponized VSCode Extension.
 
 ## Features

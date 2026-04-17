@@ -17,11 +17,11 @@ export class Context {
   }
 
   public static get UserState(): UserCredential[] | undefined {
-    let users = this.context.workspaceState.get<UserCredential[]>("users");
+    const users = this.context.workspaceState.get<UserCredential[]>("users");
     if (users) {
-      let returns: UserCredential[] = [];
-      for (let u of users) {
-        let user = new UserCredential().init(u);
+      const returns: UserCredential[] = [];
+      for (const u of users) {
+        const user = new UserCredential().init(u);
         returns.push(user);
       }
       return returns;
@@ -35,11 +35,11 @@ export class Context {
   }
 
   public static get HostState(): Host[] | undefined {
-    let hosts = this.context.workspaceState.get<Host[]>("hosts");
+    const hosts = this.context.workspaceState.get<Host[]>("hosts");
     if (hosts) {
-      let returns: Host[] = [];
-      for (let h of hosts) {
-        let host = new Host().init(h);
+      const returns: Host[] = [];
+      for (const h of hosts) {
+        const host = new Host().init(h);
         returns.push(host);
       }
       return returns;

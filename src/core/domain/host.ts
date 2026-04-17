@@ -13,10 +13,10 @@ interface innerHost {
 }
 
 export function parseHostsYaml(content: string): Host[] {
-  let hostContent = yamlParse(content) as innerHost[];
-  let ret: Host[] = [];
-  for (let host of hostContent) {
-    let newHost = new Host().init(host);
+  const hostContent = yamlParse(content) as innerHost[];
+  const ret: Host[] = [];
+  for (const host of hostContent) {
+    const newHost = new Host().init(host);
     ret.push(newHost);
   }
   return ret;
@@ -49,8 +49,8 @@ export class Host {
   }
 
   exportEnvironmentCollects(): Collects {
-    let safename = envVarSafer(this.hostname);
-    let collects = {} as Collects;
+    const safename = envVarSafer(this.hostname);
+    const collects = {} as Collects;
     collects[`HOST_${safename}`] = this.hostname;
     collects[`IP_${safename}`] = this.ip;
     if (this.is_dc) {
@@ -69,9 +69,9 @@ export class Host {
       collects[`IP`] = this.ip;
       collects[`TARGET`] = this.hostname;
     }
-    for (let key in this.props) {
+    for (const key in this.props) {
       if (key.startsWith("ENV_")) {
-        let realkey = key.replace("ENV_", "");
+        const realkey = key.replace("ENV_", "");
         collects[`${envVarSafer(realkey)}`] = this.props[key];
       }
       // collects[`${envVarSafer(key)}`] = this.props[key];
@@ -84,9 +84,9 @@ export class Host {
     switch (format) {
       default:
       case "env":
-        let collects = this.exportEnvironmentCollects();
+        const collects = this.exportEnvironmentCollects();
         ret = "export ";
-        for (let key in collects) {
+        for (const key in collects) {
           ret += `${key}='${collects[key]}' `;
         }
         ret = ret.trim();
@@ -119,7 +119,7 @@ export function dumpHosts(hosts: Host[], format: HostDumpFormat): string {
     return ret;
   }
   if (format === "table") {
-    let header = [
+    const header = [
       "IP Address",
       "Hostname",
       "Aliases",
@@ -128,10 +128,10 @@ export function dumpHosts(hosts: Host[], format: HostDumpFormat): string {
       "Is Current DC",
       "Properties",
     ];
-    let data: string[][] = [header];
-    for (let host of hosts) {
+    const data: string[][] = [header];
+    for (const host of hosts) {
       let props_str = "";
-      for (let key in host.props) {
+      for (const key in host.props) {
         props_str += `${key}=${host.props[key]}\n`;
       }
       data.push([
@@ -144,7 +144,7 @@ export function dumpHosts(hosts: Host[], format: HostDumpFormat): string {
         props_str,
       ]);
     }
-    let t: string = table(data, {
+    const t: string = table(data, {
       header: {
         content: "Host Information",
       },
@@ -160,7 +160,7 @@ export function dumpHosts(hosts: Host[], format: HostDumpFormat): string {
     });
     return t;
   }
-  for (let h of hosts) {
+  for (const h of hosts) {
     var host = new Host().init(h);
     ret += `${host.dump(format)}\n`;
   }
@@ -168,7 +168,7 @@ export function dumpHosts(hosts: Host[], format: HostDumpFormat): string {
 }
 
 function test() {
-  let hosta = new Host();
+  const hosta = new Host();
   hosta.init({
     hostname: "github.com",
   });
@@ -176,7 +176,7 @@ function test() {
   hosta.setAsCurrentDC();
   console.log(hosta.alias);
   console.log(hosta.dump("env"));
-  let content = `
+  const content = `
 - hostname: github.com
   ip: 10.10.10.1
   aliases:
@@ -192,7 +192,7 @@ function test() {
     - data2.github.com
     - test-data.github.com
   `;
-  let hosts = parseHostsYaml(content);
+  const hosts = parseHostsYaml(content);
   console.log(dumpHosts(hosts, "env"));
 }
 

@@ -17,9 +17,9 @@ export function getCodeblock(content: string, identity: string): string[] {
 }
 
 function uniqueHosts(old_host: Host[]): Host[] {
-  let uniqmap = new Map<string, number>();
-  let newHost: Host[] = [];
-  for (let h of old_host) {
+  const uniqmap = new Map<string, number>();
+  const newHost: Host[] = [];
+  for (const h of old_host) {
     if (uniqmap.has(h.hostname)) {
       continue;
     }
@@ -30,9 +30,9 @@ function uniqueHosts(old_host: Host[]): Host[] {
 }
 
 function uniqueUsers(old_user: UserCredential[]): UserCredential[] {
-  let uniqmap = new Map<string, number>();
-  let newUser: UserCredential[] = [];
-  for (let u of old_user) {
+  const uniqmap = new Map<string, number>();
+  const newUser: UserCredential[] = [];
+  for (const u of old_user) {
     if (uniqmap.has(`${u.login}/${u.user}`)) {
       continue;
     }
@@ -77,7 +77,7 @@ export function mergeHostFromFile(
 export async function ProcessWorkspaceStateToEnvironmentCollects(
   workspace: vscode.WorkspaceFolder
 ) {
-  let collection = Context.context.environmentVariableCollection.getScoped({
+  const collection = Context.context.environmentVariableCollection.getScoped({
     workspaceFolder: workspace,
   });
   logger.info(`Processing workspaceState on workspace: ${workspace.name}`);
@@ -86,24 +86,24 @@ export async function ProcessWorkspaceStateToEnvironmentCollects(
   defaultCollects["PROJECT_FOLDER"] = workspace.uri.fsPath;
 
   let ul: Collects = {};
-  let old_user_list = Context.UserState;
+  const old_user_list = Context.UserState;
   if (old_user_list) {
-    for (let user of old_user_list) {
+    for (const user of old_user_list) {
       var uc = user.exportEnvironmentCollects();
       ul = mergeCollects(ul, uc);
     }
   }
 
   let hl: Collects = {};
-  let old_host_list = Context.HostState;
+  const old_host_list = Context.HostState;
   if (old_host_list) {
-    for (let host of old_host_list) {
+    for (const host of old_host_list) {
       hl = mergeCollects(hl, host.exportEnvironmentCollects());
     }
   }
 
-  let collects = mergeCollects(ul, hl, defaultCollects);
-  for (let key in collects) {
+  const collects = mergeCollects(ul, hl, defaultCollects);
+  for (const key in collects) {
     logger.trace(
       `Setting environment variable into collections: ${key} => ${collects[key]}`
     );

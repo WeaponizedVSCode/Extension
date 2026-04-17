@@ -8,7 +8,7 @@ const bridge = new StateBridge(workspacePath);
 
 const server = new McpServer({
   name: "weaponized-vscode",
-  version: "0.2.0",
+  version: "0.3.0",
 });
 
 // --- Resources ---
@@ -63,6 +63,19 @@ server.resource("env-variables", "env://variables", async () => ({
   ],
 }));
 
+server.resource("graph-relationships", "graph://relationships", async () => {
+  const graph = bridge.getGraph();
+  return {
+    contents: [
+      {
+        uri: "graph://relationships",
+        mimeType: "application/json",
+        text: JSON.stringify(graph, null, 2),
+      },
+    ],
+  };
+});
+
 // --- Read-only Tools ---
 
 server.tool("get_targets", "Get all discovered hosts/targets", {}, async () => ({
@@ -86,6 +99,109 @@ server.tool(
       },
     ],
   })
+);
+
+server.tool(
+  "get_hosts_formatted",
+  "Get hosts formatted for direct use in commands or configs",
+  {
+    format: z
+      .enum(["env", "hosts", "yaml", "table"])
+      .describe(
+        "Output format: env (export shell vars), hosts (/etc/hosts format), yaml, table"
+      ),
+  },
+  async ({ format }) => ({
+    content: [
+      {
+        type: "text" as const,
+        text: bridge.getHostsFormatted(format),
+      },
+    ],
+  })
+);
+
+server.tool(
+  "get_credentials_formatted",
+  "Get credentials formatted for direct use with pentest tools",
+  {
+    format: z
+      .enum(["env", "impacket", "nxc", "yaml", "table"])
+      .describe(
+        "Output format: env (export shell vars), impacket (domain/user:pass), nxc (NetExec -u -p flags), yaml, table"
+      ),
+  },
+  async ({ format }) => ({
+    content: [
+      {
+        type: "text" as const,
+        text: bridge.getCredentialsFormatted(format),
+      },
+    ],
+  })
+);
+
+// --- Graph Tools ---
+
+server.tool(
+  "get_graph",
+  "Get full relationship graph — nodes, edges (all/host/user categories), attack path, and Mermaid diagram",
+  {},
+  async () => {
+    const graph = bridge.getGraph();
+    if (!graph) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify({ error: "No graph data available. Foam may not be initialized." }),
+          },
+        ],
+      };
+    }
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify(graph, null, 2),
+        },
+      ],
+    };
+  }
+);
+
+server.tool(
+  "get_attack_path",
+  "Get the privilege escalation path — ordered list of node IDs representing the longest attack chain",
+  {},
+  async () => {
+    const graph = bridge.getGraph();
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify(graph?.attackPath ?? [], null, 2),
+        },
+      ],
+    };
+  }
+);
+
+server.tool(
+  "get_mermaid",
+  "Get a pre-rendered Mermaid diagram of user relationship edges",
+  {},
+  async () => {
+    const graph = bridge.getGraph();
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: graph?.mermaid ?? "graph TD;\n  %% No graph data available",
+        },
+      ],
+    };
+  }
 );
 
 // --- Terminal Tools ---

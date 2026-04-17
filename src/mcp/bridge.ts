@@ -1,5 +1,10 @@
 import * as fs from "fs";
 import * as path from "path";
+import { Host, dumpHosts } from "../core/domain/host";
+import type { HostDumpFormat } from "../core/domain/host";
+import { UserCredential, dumpUserCredentials } from "../core/domain/user";
+import type { UserDumpFormat } from "../core/domain/user";
+import type { RelationshipGraph } from "../core/domain/graph";
 
 export interface TerminalInfo {
   id: string;
@@ -111,5 +116,21 @@ export class StateBridge {
       inputFile,
       JSON.stringify({ terminalId, command }, null, 2)
     );
+  }
+
+  getHostsFormatted(format: HostDumpFormat): string {
+    const raw = this.getHosts();
+    const hosts = raw.map((h) => new Host().init(h));
+    return dumpHosts(hosts, format);
+  }
+
+  getCredentialsFormatted(format: UserDumpFormat): string {
+    const raw = this.getUsers();
+    const users = raw.map((u) => new UserCredential().init(u));
+    return dumpUserCredentials(users, format);
+  }
+
+  getGraph(): RelationshipGraph | null {
+    return this.readJSON<RelationshipGraph>("graph.json") ?? null;
   }
 }

@@ -21,6 +21,13 @@ export {
     URI
 } from "./foam";
 
+export {
+    GraphNode,
+    GraphEdge,
+    RelationshipGraph,
+    longestReferencePath
+} from "./graph";
+
 import { UserCredential } from "./user";
 import { Host } from "./host";
 

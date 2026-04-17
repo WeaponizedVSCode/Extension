@@ -7,7 +7,7 @@ import { registerCodeLens } from "./registerCodeLens";
 import { registerTerminalUtils } from "../features/terminal";
 import { registerDefinitionProvider } from "../features/definitions";
 
-function dependencyCheck(): boolean {
+async function dependencyCheck(): Promise<boolean> {
   const foamExtension = vscode.extensions.getExtension("foam.foam-vscode");
   if (!foamExtension) {
     logger.warn("Foam extension is not installed.");
@@ -19,7 +19,7 @@ function dependencyCheck(): boolean {
   logger.info("Foam extension is installed.");
   if (!foamExtension.isActive) {
     logger.info("Activating Foam extension...");
-    foamExtension.activate();
+    await foamExtension.activate();
     logger.info("Foam extension activated.");
   }
 
@@ -38,7 +38,7 @@ function dependencyCheck(): boolean {
 
 export async function activateExtension(context: vscode.ExtensionContext) {
   Context.context = context;
-  if (!dependencyCheck()) {
+  if (!(await dependencyCheck())) {
     return;
   }
   logger.info("Activating vscode weaponized extension...");

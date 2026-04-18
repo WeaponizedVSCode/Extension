@@ -194,15 +194,6 @@ export class EmbeddedMcpServer {
       return { content: [{ type: "text" as const, text: JSON.stringify(graph, null, 2) }] };
     });
 
-    server.tool("get_attack_path", "Get the privilege escalation path — ordered list of node IDs", {}, async () => {
-      const graph = await this.buildGraph();
-      return { content: [{ type: "text" as const, text: JSON.stringify(graph?.attackPath ?? [], null, 2) }] };
-    });
-
-    server.tool("get_mermaid", "Get a pre-rendered Mermaid diagram of user relationship edges", {}, async () => {
-      const graph = await this.buildGraph();
-      return { content: [{ type: "text" as const, text: graph?.mermaid ?? "graph TD;\n  %% No graph data available" }] };
-    });
 
     server.tool("list_findings", "List all findings — security issues discovered during the engagement", {}, async () => {
       const findings = await this.getFindings();

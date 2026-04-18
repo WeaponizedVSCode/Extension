@@ -82,8 +82,22 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: '功能', link: '/zh/features/workspace-setup' },
+          { text: '架构', link: '/zh/architecture/ai-integration' },
         ],
         sidebar: {
+          '/zh/architecture/': [
+            {
+              text: '架构',
+              items: [
+                { text: 'AI 集成架构', link: '/zh/architecture/ai-integration' },
+                { text: 'Copilot Chat 参与者', link: '/zh/architecture/copilot-chat' },
+                { text: 'MCP 服务器指南', link: '/zh/architecture/mcp-server' },
+                { text: '代码质量', link: '/zh/architecture/code-quality' },
+                { text: '测试策略', link: '/zh/architecture/testing-strategy' },
+                { text: '功能路线图', link: '/zh/architecture/feature-roadmap' },
+              ],
+            },
+          ],
           '/zh/features/': [
             {
               text: '功能',

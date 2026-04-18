@@ -28,6 +28,12 @@ export {
     longestReferencePath
 } from "./graph";
 
+export {
+    Finding,
+    parseFindingNote,
+    generateFindingMarkdown
+} from "./finding";
+
 import { UserCredential } from "./user";
 import { Host } from "./host";
 

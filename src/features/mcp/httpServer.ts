@@ -1,5 +1,6 @@
 import * as http from "http";
 import * as net from "net";
+import * as vscode from "vscode";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
@@ -11,7 +12,38 @@ import type { HostDumpFormat } from "../../core/domain/host";
 import { UserCredential, dumpUserCredentials } from "../../core/domain/user";
 import type { UserDumpFormat } from "../../core/domain/user";
 import { buildRelationshipGraph } from "../targets/sync/graphBuilder";
+import type { Finding } from "../../core/domain/finding";
+import { parseFindingNote, generateFindingMarkdown } from "../../core/domain/finding";
 import { findAvailablePort } from "./portManager";
+
+function updateFrontmatter(content: string, updates: Record<string, string | undefined>): string {
+  const fmMatch = content.match(/^(---\s*\n)([\s\S]*?)(\n---)/);
+  if (!fmMatch) {
+    // No frontmatter — prepend one
+    const lines: string[] = [];
+    for (const [k, v] of Object.entries(updates)) {
+      if (v !== undefined) {
+        lines.push(`${k}: ${v}`);
+      }
+    }
+    return `---\n${lines.join("\n")}\n---\n${content}`;
+  }
+  let fm = fmMatch[2];
+  const applied = new Set<string>();
+  for (const [key, value] of Object.entries(updates)) {
+    if (value === undefined) {
+      continue;
+    }
+    const re = new RegExp(`^(${key}:\\s*)(.*)$`, "m");
+    if (re.test(fm)) {
+      fm = fm.replace(re, `${key}: ${value}`);
+    } else {
+      fm += `\n${key}: ${value}`;
+    }
+    applied.add(key);
+  }
+  return content.replace(fmMatch[0], `${fmMatch[1]}${fm}${fmMatch[3]}`);
+}
 
 export class EmbeddedMcpServer {
   private httpServer: http.Server | undefined;
@@ -104,6 +136,17 @@ export class EmbeddedMcpServer {
         }],
       };
     });
+
+    server.resource("findings-list", "findings://list", async () => {
+      const findings = await this.getFindings();
+      return {
+        contents: [{
+          uri: "findings://list",
+          mimeType: "application/json",
+          text: JSON.stringify(findings, null, 2),
+        }],
+      };
+    });
   }
 
   private registerTools(server: McpServer, bridge: TerminalBridge): void {
@@ -160,6 +203,75 @@ export class EmbeddedMcpServer {
       const graph = await this.buildGraph();
       return { content: [{ type: "text" as const, text: graph?.mermaid ?? "graph TD;\n  %% No graph data available" }] };
     });
+
+    server.tool("list_findings", "List all findings — security issues discovered during the engagement", {}, async () => {
+      const findings = await this.getFindings();
+      return { content: [{ type: "text" as const, text: JSON.stringify(findings, null, 2) }] };
+    });
+
+    server.tool(
+      "get_finding",
+      "Get a specific finding by ID",
+      { id: z.string().describe("Finding ID (note filename)") },
+      async ({ id }) => {
+        const findings = await this.getFindings();
+        const finding = findings.find((f) => f.id === id);
+        if (!finding) {
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: `Finding '${id}' not found` }) }] };
+        }
+        return { content: [{ type: "text" as const, text: JSON.stringify(finding, null, 2) }] };
+      }
+    );
+
+    server.tool(
+      "create_finding",
+      "Create a new finding note with YAML frontmatter (title, severity, description)",
+      {
+        title: z.string().describe("Finding title (also used as filename)"),
+        severity: z.enum(["critical", "high", "medium", "low", "info"]).optional().describe("Severity level (default: info)"),
+        description: z.string().optional().describe("Description of the finding"),
+        references: z.string().optional().describe("References or links"),
+      },
+      async ({ title, severity, description, references }) => {
+        const folders = vscode.workspace.workspaceFolders;
+        if (!folders?.length) {
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: "No workspace folder open" }) }] };
+        }
+        const safeName = title.replace(/[^a-zA-Z0-9-_]/g, "_");
+        const uri = vscode.Uri.joinPath(folders[0].uri, "findings", safeName, `${safeName}.md`);
+        const md = generateFindingMarkdown({ title, severity, description, references });
+        await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(md));
+        return { content: [{ type: "text" as const, text: JSON.stringify({ created: uri.fsPath, title, severity: severity ?? "info" }) }] };
+      }
+    );
+
+    server.tool(
+      "update_finding_frontmatter",
+      "Update a finding note's YAML frontmatter fields (severity, description, or custom properties)",
+      {
+        id: z.string().describe("Finding ID (note filename)"),
+        severity: z.enum(["critical", "high", "medium", "low", "info"]).optional().describe("New severity level"),
+        description: z.string().optional().describe("New description to set in frontmatter"),
+        props: z.record(z.string(), z.string()).optional().describe("Additional YAML frontmatter key-value pairs to set"),
+      },
+      async ({ id, severity, description, props }) => {
+        const folders = vscode.workspace.workspaceFolders;
+        if (!folders?.length) {
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: "No workspace folder open" }) }] };
+        }
+        const uri = vscode.Uri.joinPath(folders[0].uri, "findings", id, `${id}.md`);
+        let content: string;
+        try {
+          const raw = await vscode.workspace.fs.readFile(uri);
+          content = new TextDecoder().decode(raw);
+        } catch {
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: `Finding note '${id}' not found at ${uri.fsPath}` }) }] };
+        }
+        content = updateFrontmatter(content, { severity, description, ...props });
+        await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(content));
+        return { content: [{ type: "text" as const, text: JSON.stringify({ updated: id, path: uri.fsPath }) }] };
+      }
+    );
 
     server.tool("list_terminals", "List all open VS Code terminals", {}, async () => ({
       content: [{ type: "text" as const, text: JSON.stringify(bridge.getTerminals(), null, 2) }],
@@ -241,5 +353,30 @@ export class EmbeddedMcpServer {
       // Foam not available
     }
     return null;
+  }
+
+  private async getFindings(): Promise<Finding[]> {
+    const folders = vscode.workspace.workspaceFolders;
+    if (!folders?.length) {
+      return [];
+    }
+    try {
+      const pattern = new vscode.RelativePattern(folders[0], "findings/{*.md,*/*.md}");
+      const files = await vscode.workspace.findFiles(pattern);
+      const findings: Finding[] = [];
+      for (const file of files) {
+        const raw = await vscode.workspace.fs.readFile(file);
+        const content = new TextDecoder().decode(raw);
+        // Check it's actually a finding type note
+        if (!content.match(/^type:\s*finding/m)) {
+          continue;
+        }
+        const basename = file.path.split("/").pop()?.replace(/\.md$/, "") ?? file.path;
+        findings.push(parseFindingNote(basename, content));
+      }
+      return findings;
+    } catch {
+      return [];
+    }
   }
 }

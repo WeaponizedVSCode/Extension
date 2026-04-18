@@ -80,4 +80,5 @@ proxys on|off|show      # 代理切换
 ## 关键文件
 
 - `src/features/targets/sync/markdownSync.ts` — 解析和导出变量
-- `src/features/targets/sync/stateWriter.ts` — 将状态写入 `.weapon-state/`
+- `src/features/targets/sync/index.ts` — 同步入口
+- `src/features/targets/sync/graphBuilder.ts` — 构建目标图

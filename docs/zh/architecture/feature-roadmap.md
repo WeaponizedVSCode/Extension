@@ -20,25 +20,26 @@
 **目标：** 修复 Bug，添加测试，为 AI 集成做准备。
 
 ### 1.1 代码质量修复
-- [ ] 修复 Foam 激活时缺少的 `await`
-- [ ] 将 `Foam()` 改为静态方法
-- [ ] 在激活过程中添加错误边界
-- [ ] 全面将 `let` 转换为 `const`
-- [ ] 修复重复的 `is_dc` 赋值
-- [ ] 将 `defaultCollects` 转换为惰性函数
+- [x] 修复 Foam 激活时缺少的 `await`
+- [x] 将 `Foam()` 改为静态方法
+- [x] 在激活过程中添加错误边界
+- [x] 全面将 `let` 转换为 `const`
+- [x] 修复重复的 `is_dc` 赋值
+- [x] 状态访问器缓存
+- [x] `defaultCollects` 惰性加载
 - [ ] 启用严格的 TSConfig 选项
 
 ### 1.2 测试
-- [ ] 搭建测试基础设施和测试夹具
-- [ ] `core/domain/` 的单元测试（Host、UserCredential）
-- [ ] `core/markdown/` 的单元测试（fencedBlocks、yamlBlocks）
-- [ ] `core/env/` 的单元测试（collects、envVarSafer、mergeCollects）
+- [x] 搭建测试基础设施和测试夹具
+- [x] `core/domain/` 的单元测试（Host、UserCredential）
+- [x] `core/markdown/` 的单元测试（fencedBlocks、yamlBlocks）
+- [x] `core/env/` 的单元测试（collects、envVarSafer、mergeCollects）
 - [ ] 目标同步的集成测试
 - [ ] 端到端激活测试
 - [ ] CI 测试流水线
 
 ### 1.3 开发者体验
-- [ ] 为 Claude Code 用户添加 `CLAUDE.md`
+- [x] 为 AI 编程助手添加 `AGENTS.md`
 - [ ] 添加 `.editorconfig`
 - [ ] 将 Python 生成器重写为 TypeScript
 - [ ] 在 README 中记录所有环境变量
@@ -50,25 +51,25 @@
 **目标：** 添加 AI 助手和外部 AI 控制。
 
 ### 2.1 Copilot 聊天参与者
-- [ ] 注册 `@weapon` 聊天参与者
-- [ ] 实现 `/analyze` 命令（分析工具输出）
-- [ ] 实现 `/suggest` 命令（建议下一步操作）
-- [ ] 实现 `/generate` 命令（生成命令）
-- [ ] 实现 `/report` 命令（评估摘要）
-- [ ] 实现 `/explain` 命令（解释概念）
-- [ ] 构建包含评估上下文的系统提示
-- [ ] 在所有 LLM 上下文中添加凭据脱敏
+- [x] 注册 `@weapon` 聊天参与者
+- [x] 实现 `/analyze` 命令（分析工具输出）
+- [x] 实现 `/suggest` 命令（建议下一步操作）
+- [x] 实现 `/generate` 命令（生成命令）
+- [x] 实现 `/report` 命令（评估摘要）
+- [x] 实现 `/explain` 命令（解释概念）
+- [x] 构建包含评估上下文的系统提示
+- [x] 在所有 LLM 上下文中添加凭据脱敏
 - [ ] 添加内联操作按钮（运行命令、创建笔记）
 
 ### 2.2 MCP 服务器
-- [ ] 实现带有 stdio 传输的独立 MCP 服务器
+- [x] 实现嵌入式 MCP 服务器，使用 Streamable HTTP 传输
 - [ ] 资源：hosts、users、env-vars、terminal-logs、notes
-- [ ] 只读工具：get_targets、get_credentials、search_notes、get_attack_graph
-- [ ] 写入工具：switch_target、switch_user、run_command、run_scanner
-- [ ] 知识工具：create_finding、generate_report、decode_text
+- [x] 只读工具：get_targets、get_credentials、get_graph、list_findings、get_finding
+- [x] 写入工具：create_finding、update_finding_frontmatter
+- [x] 格式化输出工具：get_hosts_formatted、get_credentials_formatted
+- [x] 终端工具：list_terminals、read_terminal、send_to_terminal、create_terminal
+- [ ] 尚未实现：search_notes、get_attack_graph、switch_target、switch_user、run_command、run_scanner、generate_report、decode_text
 - [ ] 提示模板：analyze-output、suggest-next-steps、privesc-check
-- [ ] 状态桥接（基于文件系统的 IPC）
-- [ ] MCP 服务器包的单独 webpack 配置
 - [ ] MCP Inspector 测试
 - [ ] Claude Code、Cursor、VS Code MCP 配置的文档
 
@@ -209,10 +210,10 @@
 
 | 指标 | 当前值 | 第一阶段目标 | 第二阶段目标 |
 |--------|---------|----------------|----------------|
-| 测试覆盖率 (core/) | 0% | 90% | 90% |
+| 测试覆盖率 (core/) | ~90% | 90% | 90% |
 | 测试覆盖率（总体） | 0% | 40% | 60% |
 | 已知 Bug | ~5 | 0 | 0 |
-| 可用 AI 命令 | 0 | 0 | 5+ |
-| 可用 MCP 工具 | 0 | 0 | 10+ |
+| 可用 AI 命令 | 5 | 0 | 5+ |
+| 可用 MCP 工具 | 13 | 0 | 10+ |
 | 扫描结果自动导入 | 0 种格式 | 0 | 0 |
 | 支持的扫描器配置 | 9 | 9 | 12+ |

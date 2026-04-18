@@ -20,25 +20,26 @@ The extension already provides a strong foundation:
 **Goal:** Fix bugs, add tests, prepare for AI integration.
 
 ### 1.1 Code Quality Fixes
-- [ ] Fix missing `await` on Foam activation
-- [ ] Make `Foam()` a static method
-- [ ] Add error boundaries in activation
-- [ ] Convert `let` to `const` throughout
-- [ ] Fix duplicate `is_dc` assignment
-- [ ] Convert `defaultCollects` to lazy function
+- [x] Fix missing `await` on Foam activation
+- [x] Make `Foam()` a static method
+- [x] Add error boundaries in activation
+- [x] Convert `let` to `const` throughout
+- [x] Fix duplicate `is_dc` assignment
+- [x] State getter caching
+- [x] `defaultCollects` lazy loading
 - [ ] Enable strict TSConfig options
 
 ### 1.2 Testing
-- [ ] Set up test infrastructure with fixtures
-- [ ] Unit tests for `core/domain/` (Host, UserCredential)
-- [ ] Unit tests for `core/markdown/` (fencedBlocks, yamlBlocks)
-- [ ] Unit tests for `core/env/` (collects, envVarSafer, mergeCollects)
+- [x] Set up test infrastructure with fixtures
+- [x] Unit tests for `core/domain/` (Host, UserCredential)
+- [x] Unit tests for `core/markdown/` (fencedBlocks, yamlBlocks)
+- [x] Unit tests for `core/env/` (collects, envVarSafer, mergeCollects)
 - [ ] Integration tests for target sync
 - [ ] E2E activation test
 - [ ] CI test pipeline
 
 ### 1.3 Developer Experience
-- [ ] Add `CLAUDE.md` for Claude Code users
+- [x] Add `AGENTS.md` for AI coding assistants
 - [ ] Add `.editorconfig`
 - [ ] Rewrite Python generators in TypeScript
 - [ ] Document all environment variables in README
@@ -50,25 +51,25 @@ The extension already provides a strong foundation:
 **Goal:** Add AI assistant and external AI control.
 
 ### 2.1 Copilot Chat Participant
-- [ ] Register `@weapon` Chat Participant
-- [ ] Implement `/analyze` command (analyze tool output)
-- [ ] Implement `/suggest` command (suggest next steps)
-- [ ] Implement `/generate` command (generate commands)
-- [ ] Implement `/report` command (engagement summary)
-- [ ] Implement `/explain` command (explain concepts)
-- [ ] Build system prompt with engagement context
-- [ ] Add credential redaction in all LLM contexts
+- [x] Register `@weapon` Chat Participant
+- [x] Implement `/analyze` command (analyze tool output)
+- [x] Implement `/suggest` command (suggest next steps)
+- [x] Implement `/generate` command (generate commands)
+- [x] Implement `/report` command (engagement summary)
+- [x] Implement `/explain` command (explain concepts)
+- [x] Build system prompt with engagement context
+- [x] Add credential redaction in all LLM contexts
 - [ ] Add inline action buttons (run command, create note)
 
 ### 2.2 MCP Server
-- [ ] Implement standalone MCP server with stdio transport
+- [x] Implement embedded MCP server with Streamable HTTP transport
 - [ ] Resources: hosts, users, env-vars, terminal-logs, notes
-- [ ] Read-only tools: get_targets, get_credentials, search_notes, get_attack_graph
-- [ ] Write tools: switch_target, switch_user, run_command, run_scanner
-- [ ] Knowledge tools: create_finding, generate_report, decode_text
+- [x] Read tools: get_targets, get_credentials, get_graph, list_findings, get_finding
+- [x] Write tools: create_finding, update_finding_frontmatter
+- [x] Formatted output tools: get_hosts_formatted, get_credentials_formatted
+- [x] Terminal tools: list_terminals, read_terminal, send_to_terminal, create_terminal
+- [ ] Not yet implemented: search_notes, get_attack_graph, switch_target, switch_user, run_command, run_scanner, generate_report, decode_text
 - [ ] Prompt templates: analyze-output, suggest-next-steps, privesc-check
-- [ ] State bridge (filesystem-based IPC)
-- [ ] Separate webpack config for MCP server bundle
 - [ ] MCP Inspector testing
 - [ ] Documentation for Claude Code, Cursor, VS Code MCP config
 
@@ -209,10 +210,10 @@ These are explicitly out of scope:
 
 | Metric | Current | Phase 1 Target | Phase 2 Target |
 |--------|---------|----------------|----------------|
-| Test coverage (core/) | 0% | 90% | 90% |
+| Test coverage (core/) | ~90% | 90% | 90% |
 | Test coverage (overall) | 0% | 40% | 60% |
 | Known bugs | ~5 | 0 | 0 |
-| AI commands available | 0 | 0 | 5+ |
-| MCP tools available | 0 | 0 | 10+ |
+| AI commands available | 5 | 0 | 5+ |
+| MCP tools available | 13 | 0 | 10+ |
 | Scan result auto-import | 0 formats | 0 | 0 |
 | Supported scanner configs | 9 | 9 | 12+ |

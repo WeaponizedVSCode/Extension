@@ -1,82 +1,77 @@
 # Agent Instructions
 
-This repo is a VS Code extension for penetration testing workflows, written in TypeScript with a few Python generator scripts. It includes a standalone MCP server for external AI client integration.
+This repo is a VS Code extension for penetration testing workflows, written in TypeScript with a few Python generator scripts. It includes an embedded MCP server for external AI client integration.
 
 ## Project layout
 
 ```
 src/
-├── core/              # Core models (Host, UserCredential, etc.)
-├── features/          # Feature modules — most work goes here
-│   ├── ai/            # @weapon Copilot Chat participant
-│   ├── codelens/       # Inline code block actions
-│   ├── credentials/    # Credential management
-│   ├── definitions/    # BloodHound hover/go-to-definition
-│   ├── environment/    # Terminal environment variables
-│   ├── hosts/          # Host parsing and management
-│   ├── mcp/            # MCP config install command
-│   ├── notes/          # Foam-based notes and reports
-│   ├── payload/        # MSFVenom payload generation
-│   ├── repeater/       # HTTP repeater
-│   ├── scanner/        # Network scanning
-│   ├── setup/          # Workspace scaffolding
-│   ├── shell/          # Shell command runner
-│   ├── targets/        # Target sync and state writer
-│   ├── terminal/       # Terminal profiles, recorder, bridge
-│   └── text/           # Text decoding (CyberChef)
-├── mcp/               # Standalone MCP server (separate webpack build)
-│   ├── server.ts       # MCP tools, resources, prompts
-│   └── bridge.ts       # StateBridge — reads .weapon-state/ IPC files
-├── platform/vscode/   # VS Code integration helpers (logger, context)
-└── snippets/source/   # GTFOBins, LOLBAS, BloodHound, Weapon snippets
+├── app/               # Composition root (activate, registerCommands, registerCodeLens)
+├── core/              # Pure domain logic (zero vscode imports)
+│   ├── domain/        # Host, UserCredential, Finding, Graph, Foam types
+│   ├── markdown/      # Fenced block & YAML block parsing
+│   └── env/           # Environment variable Collects
+├── features/          # Vertical feature slices — most work goes here
+│   ├── ai/            # @weapon Copilot Chat participant + AIService
+│   ├── decoder/       # CyberChef text decoding
+│   ├── definitions/   # BloodHound hover/go-to-definition
+│   ├── editor/        # Virtual document display, in-file replacement
+│   ├── http/          # HTTP repeater (raw request, curl conversion)
+│   ├── mcp/           # Embedded MCP HTTP server (httpServer, install, portManager)
+│   ├── notes/         # Foam-based notes, report generation
+│   ├── setup/         # Workspace scaffolding
+│   ├── shell/         # Shell command runner CodeLens
+│   ├── targets/       # Target sync, state management, graph builder
+│   ├── tasks/         # Task commands (hashcat, msfvenom, scan)
+│   └── terminal/      # Terminal profiles, recorder, TerminalBridge
+├── platform/vscode/   # VS Code integration helpers (logger, context, variables)
+├── shared/            # Cross-cutting utilities (types, globs)
+├── snippets/source/   # GTFOBins, LOLBAS, BloodHound, Weapon snippets
+└── test/unit/         # Unit tests for core/ layer
 resources/             # Templates and static assets for generators
 scripts/               # Python/TS generator scripts
-docs/                  # Feature docs (en) and docs/features/zh/ (cn)
+docs/                  # Documentation (en + zh)
 ```
 
 ## Build system
 
 - Package manager: `pnpm` (lockfile: `pnpm-lock.yaml`)
-- Bundler: webpack (two separate configs)
-  - `webpack.config.js` → `dist/extension.js` (main extension)
-  - `webpack.config.mcp.js` → `dist/mcp-server.js` (standalone MCP server)
+- Bundler: webpack (`webpack.config.js` → `dist/extension.js`)
+- The MCP server is embedded in the extension — no separate build target
 
 ### Key scripts
 
 | Script | Purpose |
 |--------|---------|
-| `pnpm run compile` | Dev build (extension only) |
-| `pnpm run compile:mcp` | Dev build (MCP server only) |
-| `pnpm run package` | Production build (extension only) |
-| `pnpm run package:mcp` | Production build (MCP server only) |
-| `pnpm run vscode:prepublish` | Runs `package` + `package:mcp` (triggered by vsce) |
+| `pnpm run compile` | Dev build (webpack) |
+| `pnpm run watch` | Dev build with watch mode |
+| `pnpm run package` | Production build (webpack --mode production) |
+| `pnpm run vscode:prepublish` | Runs `package` (triggered by vsce) |
 | `pnpm run vscode:publish` | `vsce package --no-dependencies` → produces .vsix |
 | `pnpm run lint` | ESLint |
-| `pnpm run compile-tests` | Compile tests to `out/` |
-| `pnpm run test:unit` | Run unit tests (70+ tests) |
+| `pnpm run compile-tests` | Compile tests to `out/` via tsc |
+| `pnpm run test:unit` | Run unit tests (7 test files covering core/) |
 | `pnpm run gen-setup` | Regenerate `src/features/setup/assets.ts` |
-| `pnpm run gen-report-assets` | Regenerate `src/features/reports/assets.ts` |
+| `pnpm run gen-report-assets` | Regenerate `src/features/notes/reports/assets.ts` |
 
 If network access is restricted, do not add dependencies or run install commands without explicit approval.
 
 ## Generated code (do not hand-edit)
 
 - `src/features/setup/assets.ts` — generated by `scripts/gen-setup.py`
-- `src/features/reports/assets.ts` — generated by `scripts/gen-report-assets.py`
+- `src/features/notes/reports/assets.ts` — generated by `scripts/gen-report-assets.py`
 
 When changing inputs under `resources/**`, update the generator if needed and regenerate the corresponding `assets.ts`.
 
-## File-based IPC (.weapon-state/)
+## MCP Server (embedded)
 
-The extension and MCP server communicate via files in `.weapon-state/`:
+The MCP server runs **inside the extension host** as an HTTP server on `127.0.0.1`. It is NOT a separate process — no file-based IPC is used.
 
-| File | Writer | Reader | Purpose |
-|------|--------|--------|---------|
-| `terminals.json` | Extension | MCP | Terminal list metadata |
-| `terminals/{id}.log` | Extension | MCP | Terminal output capture |
-| `terminal-input.json` | MCP | Extension | Command requests to terminals |
-| `hosts.json` | Extension | MCP | Discovered hosts/targets |
-| `users.json` | Extension | MCP | Discovered credentials |
+- **Source**: `src/features/mcp/httpServer.ts`
+- **Transport**: Streamable HTTP (`POST /mcp`)
+- **State access**: reads directly from the `Context` singleton (in-memory)
+- **Terminal interaction**: via `TerminalBridge` (in-process method calls)
+- **Configuration**: `.vscode/mcp.json` with URL entry (not stdio)
 
 ## TypeScript conventions
 
@@ -85,18 +80,19 @@ The extension and MCP server communicate via files in `.weapon-state/`:
 - Avoid `any` unless there is no reasonable alternative; prefer narrow local types.
 - Keep changes focused; avoid broad refactors unrelated to the request.
 - Favor small, well-named functions over large monolithic ones.
+- `core/` must have **zero** `vscode` imports — this is a hard architectural boundary.
 
 ## Packaging (.vscodeignore)
 
 The `.vscodeignore` controls what goes into the .vsix. Key rules:
 - `src/**` is excluded, **except** `src/snippets/source/**` (referenced by `package.json` contributes.snippets)
-- `dist/` is included (both `extension.js` and `mcp-server.js`)
+- `dist/` is included (`extension.js`)
 - Source maps (`**/*.map`), docs, scripts, tests, and dev config are excluded
 
 ## Dependency caveats
 
 - Do not edit files under `node_modules/**`.
-- If build/typecheck fails due to upstream `foam-vscode` types, document it, but don’t patch dependencies unless explicitly requested.
+- If build/typecheck fails due to upstream `foam-vscode` types, document it, but don't patch dependencies unless explicitly requested.
 
 ## Git hygiene
 

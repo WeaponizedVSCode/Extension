@@ -2,43 +2,45 @@
 
 ## 概述
 
-本文档描述了为 WeaponizedVSCode 扩展添加 AI 能力的高层架构。涵盖三个集成层面:
+本文档描述了 WeaponizedVSCode 扩展的 AI 能力架构。涵盖两个集成层面:
 
 1. **VS Code Copilot Chat Participant** -- 感知渗透测试状态的编辑器内 AI 助手
 2. **MCP Server** -- 允许外部 AI 工具 (Claude Code, Cursor 等) 控制扩展
-3. **本地 LLM 管道** -- 适用于敏感任务的可选离线分析方案
+
+两个层面共享一个通用的 `AIService` 层，从扩展核心提供任务状态数据。
 
 ---
 
 ## 架构图
 
 ```
-                           ┌──────────────────────────────────────┐
-                           │         VS Code Extension Host       │
-                           │                                      │
-                           │  ┌────────────────────────────────┐  │
-                           │  │   WeaponizedVSCode Extension   │  │
-                           │  │                                │  │
-  ┌───────────────────┐    │  │  ┌──────────┐  ┌───────────┐  │  │   ┌───────────────────┐
-  │  Copilot Chat     │◄───┼──┤  │ Chat      │  │ Extension │  │  │   │  Claude Code /    │
-  │  (VS Code UI)     │    │  │  │ Participant│  │ Core      │  │  │   │  Cursor / other   │
-  └───────────────────┘    │  │  │ (@weapon) │  │           │  │  ├──►│  AI IDE tools     │
-                           │  │  └─────┬─────┘  │ Context   │  │  │   └─────────┬─────────┘
-                           │  │        │        │ Host/User │  │  │             │
-                           │  │        ▼        │ Foam      │  │  │             │
-                           │  │  ┌──────────┐   │ Env Vars  │  │  │       ┌─────▼─────────┐
-                           │  │  │ AI        │   │ Terminal  │  │  │       │  MCP Client   │
-                           │  │  │ Service   │◄─►│ Recorder  │  │  │       │  (in AI tool) │
-                           │  │  │ Layer     │   │ Reports   │  │  │       └─────┬─────────┘
-                           │  │  └──────────┘   └───────────┘  │  │             │
-                           │  │        │                       │  │             │ stdio/SSE
-                           │  │        ▼                       │  │             │
-                           │  │  ┌──────────┐                  │  │       ┌─────▼─────────┐
-                           │  │  │ MCP      │◄─────────────────┼──┼───────│  MCP Server   │
-                           │  │  │ Server   │                  │  │       │  (stdio)      │
-                           │  │  └──────────┘                  │  │       └───────────────┘
-                           │  └────────────────────────────────┘  │
-                           └──────────────────────────────────────┘
+                           +--------------------------------------+
+                           |         VS Code Extension Host       |
+                           |                                      |
+                           |  +--------------------------------+  |
+                           |  |   WeaponizedVSCode Extension   |  |
+                           |  |                                |  |
+  +-------------------+    |  |  +------------+ +-----------+  |  |   +-------------------+
+  |  Copilot Chat     |<---+--+  | Chat       | | AIService |  |  |   |  Claude Code /    |
+  |  (VS Code UI)     |    |  |  | Participant| | (shared)  |  |  |   |  Cursor / other   |
+  +-------------------+    |  |  |(@weapon)   | |           |  |  +-->|  AI IDE tools     |
+                           |  |  +-----+------+ | hosts     |  |  |   +---------+---------+
+                           |  |        |        | users     |  |  |             |
+                           |  |        v        | currentH  |  |  |             |
+                           |  |  +-----------+  | currentU  |  |  |       +-----v---------+
+                           |  |  | Prompt    |  |           |  |  |       |  MCP Client   |
+                           |  |  | Builders  |  +-----------+  |  |       |  (in AI tool) |
+                           |  |  | system/   |                 |  |       +-----+---------+
+                           |  |  | host/user |                 |  |             |
+                           |  |  +-----------+                 |  |             | Streamable HTTP
+                           |  |                                |  |             |
+                           |  +--------------------------------+  |             |
+                           |                                      |       +-----v---------+
+                           |  +--------------------------------+  |       |  Embedded     |
+                           |  | Embedded MCP HTTP Server       |<-+-------+  HTTP Server  |
+                           |  | (http://127.0.0.1:{port}/mcp)  |  |       | 127.0.0.1     |
+                           |  +--------------------------------+  |       +---------------+
+                           +--------------------------------------+
 ```
 
 ---
@@ -47,16 +49,23 @@
 
 **目标:** 让渗透测试人员在 VS Code 中使用自然语言提问，并获得上下文感知的回答。
 
-**API:** `vscode.chat.createChatParticipant("weapon", handler)`
+**API:** `vscode.chat.createChatParticipant("weapon.chat", handler)`
 
 **能力:**
-- 读取 `Context.HostState`、`Context.UserState`、Foam 图谱
-- 解析和汇总终端记录日志
-- 根据当前任务状态建议下一步操作
-- 从自然语言生成命令 (nmap, ffuf, impacket)
-- 解释 BloodHound 输出、nmap 结果等
+- 通过 `AIService.getEngagementState()` 读取当前主机和用户状态
+- 使用系统提示词、主机上下文和用户上下文构建结构化提示词
+- 支持斜杠命令: `/analyze`、`/suggest`、`/generate`、`/explain`、`/report`
+- 从自然语言生成渗透测试命令
+- 分析工具输出并建议下一步操作
+- 生成任务摘要报告 (主机表格、凭据表格)
+- 根据上一个命令提供后续建议
 
-**参见:** `docs/02-COPILOT-CHAT-PARTICIPANT.md` 获取完整的实现指南。
+**提示词架构:**
+- `buildSystemPrompt()` -- 定义 AI 角色、环境、指南和输出格式
+- `buildHostContext(hosts, currentHost)` -- 格式化已知主机和当前目标
+- `buildUserContext(users, currentUser)` -- 格式化已知凭据 (永不包含实际密码/哈希)
+
+**参见:** [docs/architecture/copilot-chat.md](copilot-chat.md) 获取完整的实现指南。
 
 ---
 
@@ -64,44 +73,62 @@
 
 **目标:** 允许外部 AI 代理 (Claude Code, Cursor, Windsurf, 自定义代理) 以编程方式读取和控制扩展的状态。
 
-**协议:** Model Context Protocol (MCP)，通过 stdio 或 SSE 传输。
+**协议:** Model Context Protocol (MCP)，通过 Streamable HTTP 传输，由绑定到 `127.0.0.1` 自动选择端口的内嵌 HTTP 服务器提供服务。端点为 `http://127.0.0.1:{port}/mcp`。
 
-**能力:**
-- **资源:** 当前主机、用户、服务、Foam 笔记、终端日志
-- **工具:** 运行扫描器、切换目标、创建发现、生成报告、执行命令
-- **提示词:** 用于常见渗透测试分析任务的预构建提示词模板
+**实现:** `src/features/mcp/httpServer.ts` -- `EmbeddedMcpServer` 类为每个请求创建新的 `McpServer` + `StreamableHTTPServerTransport` (无状态模式)。
 
-**参见:** `docs/03-MCP-SERVER-GUIDE.md` 获取完整的实现指南。
+**资源:**
+- `hosts://list` -- 所有已发现的主机
+- `hosts://current` -- 当前活跃目标主机
+- `users://list` -- 所有已发现的凭据
+- `users://current` -- 当前活跃用户凭据
+- `graph://relationships` -- 基于 Foam 的完整关系图
+- `findings://list` -- 所有发现记录
 
----
+**工具:**
+- `get_targets` -- 获取所有已发现的主机
+- `get_credentials` -- 获取所有已发现的凭据
+- `get_hosts_formatted` -- 获取格式化的主机信息用于命令 (env, hosts, yaml, table)
+- `get_credentials_formatted` -- 获取格式化的凭据用于渗透工具 (env, impacket, nxc, yaml, table)
+- `get_graph` -- 获取完整关系图，包含节点、边和 Mermaid 图
+- `list_findings` -- 按严重性、标签或全文搜索列出/筛选发现
+- `get_finding` -- 按 ID 获取特定发现
+- `create_finding` -- 创建带有 YAML frontmatter 的新发现记录
+- `update_finding_frontmatter` -- 更新发现的 frontmatter 字段
+- `list_terminals` -- 列出所有打开的 VS Code 终端
+- `read_terminal` -- 读取终端的最近输出
+- `send_to_terminal` -- 向终端发送命令
+- `create_terminal` -- 创建新终端 (可选配置文件: netcat, msfconsole, meterpreter, web-delivery, shell)
 
-## 集成层面 3: 本地 LLM (可选)
+**提示词:**
+- `analyze-output` -- 分析工具输出并识别发现，包含当前目标上下文
+- `suggest-next-steps` -- 根据当前主机和用户建议下一步渗透操作
 
-适用于不允许使用云端 API 的隔离网络或高度敏感的任务:
-
-- 使用 `ollama` 或 `llama.cpp` 作为本地推理后端
-- AI Service Layer 对 LLM 提供者进行抽象 (云端或本地)
-- 使用相同的 Chat Participant UI，不同的后端
-
-这是一项未来增强功能；请先从 Copilot 集成开始。
+**参见:** [docs/architecture/mcp-server.md](mcp-server.md) 获取完整的实现指南。
 
 ---
 
 ## 共享 AI 服务层
 
-为避免在 Chat Participant 和 MCP Server 之间重复逻辑，引入一个共享服务:
+`src/features/ai/service.ts` 中的 `AIService` 类提供 Chat Participant 使用的共享逻辑。MCP 服务器直接从 `Context` 读取数据，但遵循相同的数据模型。
+
+### 文件结构
 
 ```
 src/
   features/
     ai/
-      service.ts           -- AIService class: shared logic
-      participant.ts       -- Copilot Chat Participant (uses AIService)
-      mcp/
-        server.ts          -- MCP server entry point
-        tools.ts           -- MCP tool definitions
-        resources.ts       -- MCP resource definitions
-        prompts.ts         -- MCP prompt templates
+      index.ts               -- registerAIFeatures(): 创建 chat participant
+      service.ts             -- AIService 类: getEngagementState(), redactCredentials()
+      participant.ts         -- Chat 处理器、斜杠命令、LLM 交互
+      prompts/
+        systemPrompt.ts      -- buildSystemPrompt(): AI 角色和指南
+        hostContext.ts       -- buildHostContext(): 为提示词格式化主机数据
+        userContext.ts       -- buildUserContext(): 为提示词格式化凭据数据
+    mcp/
+      httpServer.ts          -- EmbeddedMcpServer: HTTP 服务器、资源、工具、提示词
+      install.ts             -- 为 AI IDE 客户端安装 MCP 配置
+      portManager.ts         -- 端口选择工具
 ```
 
 ### AIService 接口
@@ -109,115 +136,76 @@ src/
 ```typescript
 // src/features/ai/service.ts
 
+import { Host, UserCredential } from "../../core";
 import { Context } from "../../platform/vscode/context";
-import type { Host, UserCredential, Foam, Resource } from "../../core";
 
 export interface EngagementState {
   hosts: Host[];
   users: UserCredential[];
   currentHost: Host | undefined;
   currentUser: UserCredential | undefined;
-  foamNotes: Resource[];
-  environmentVariables: Record<string, string>;
-}
-
-export interface TerminalLogEntry {
-  timestamp: string;
-  terminalName: string;
-  command: string;
-  output?: string;
 }
 
 export class AIService {
-  /** Snapshot of all engagement state for LLM context */
-  async getEngagementState(): Promise<EngagementState> {
+  /** 同步获取所有任务状态的快照，用于 LLM 上下文 */
+  getEngagementState(): EngagementState {
     const hosts = Context.HostState ?? [];
     const users = Context.UserState ?? [];
-    const foam = await new Context().Foam();
-    const foamNotes = foam?.workspace.list() ?? [];
-
-    return {
-      hosts,
-      users,
-      currentHost: hosts.find(h => h.is_current),
-      currentUser: users.find(u => u.is_current),
-      foamNotes,
-      environmentVariables: this.collectEnvVars(hosts, users),
-    };
+    const currentHost = hosts.find((h) => h.is_current);
+    const currentUser = users.find((u) => u.is_current);
+    return { hosts, users, currentHost, currentUser };
   }
 
-  /** Parse terminal log file into structured entries */
-  async getTerminalLogs(logPath: string): Promise<TerminalLogEntry[]> {
-    // Parse the weaponized-terminal-logging format
+  /** 将已知的密码和 NT 哈希替换为 [REDACTED] */
+  redactCredentials(text: string): string {
+    // 遍历已知用户并替换敏感值
     // ...
-  }
-
-  /** Build a context string suitable for LLM prompts */
-  async buildPromptContext(): Promise<string> {
-    const state = await this.getEngagementState();
-    const lines: string[] = [];
-
-    lines.push("## Current Engagement State\n");
-
-    if (state.currentHost) {
-      lines.push(`**Current Target:** ${state.currentHost.hostname} (${state.currentHost.ip})`);
-    }
-    if (state.currentUser) {
-      lines.push(`**Current User:** ${state.currentUser.login || state.currentUser.user}`);
-    }
-
-    lines.push(`\n**Known Hosts:** ${state.hosts.length}`);
-    lines.push(`**Known Users:** ${state.users.length}`);
-    lines.push(`**Foam Notes:** ${state.foamNotes.length}`);
-
-    return lines.join("\n");
-  }
-
-  private collectEnvVars(
-    hosts: Host[],
-    users: UserCredential[]
-  ): Record<string, string> {
-    // Merge all exported env vars
-    // ...
-    return {};
   }
 }
 ```
 
 ---
 
-## AI 数据流
+## 数据流
+
+### Chat Participant 流程
 
 ```
-User types "@weapon analyze this nmap output"
-  │
-  ├─► Chat Participant receives request
-  │     │
-  │     ├─► AIService.getEngagementState()
-  │     │     └─► Reads Context.HostState, UserState, Foam
-  │     │
-  │     ├─► AIService.buildPromptContext()
-  │     │     └─► Formats state into LLM-friendly text
-  │     │
-  │     ├─► Sends to Copilot LLM with context + user query
-  │     │
-  │     └─► Streams response back to Chat UI
-  │
-  ▼
-User sees AI response with host-aware suggestions
+用户输入 "@weapon /analyze 扫描输出内容"
+  |
+  +-> Chat Participant 接收请求
+  |     |
+  |     +-> aiService.getEngagementState()
+  |     |     +-> 读取 Context.HostState, Context.UserState
+  |     |
+  |     +-> buildSystemPrompt()     -- AI 角色和指南
+  |     +-> buildHostContext()       -- 已知主机、当前目标
+  |     +-> buildUserContext()       -- 已知凭据 (已脱敏)
+  |     +-> buildTaskPrompt()       -- 命令特定的任务指令
+  |     |
+  |     +-> vscode.lm.selectChatModels({ vendor: "copilot", family: "gpt-4o" })
+  |     +-> model.sendRequest(messages, {}, token)
+  |     |
+  |     +-> 将响应流式传输回 Chat UI
+  |
+  v
+用户看到包含上下文感知建议和后续操作的 AI 回复
+```
 
+### MCP 流程
 
-External AI (Claude Code) calls MCP tool "get_targets"
-  │
-  ├─► MCP Server receives tool call
-  │     │
-  │     ├─► AIService.getEngagementState()
-  │     │     └─► Same shared logic
-  │     │
-  │     └─► Returns JSON response via MCP protocol
-  │
-  ▼
-Claude Code uses target data to plan next actions
+```
+外部 AI (Claude Code) 调用 MCP 工具 "get_targets"
+  |
+  +-> HTTP POST 到 http://127.0.0.1:{port}/mcp
+  |     |
+  |     +-> 创建新的 McpServer + StreamableHTTPServerTransport
+  |     +-> 工具处理器直接读取 Context.HostState
+  |     +-> 通过 MCP 协议返回 JSON 响应
+  |     +-> 关闭 transport 和 server (无状态)
+  |
+  v
+Claude Code 使用目标数据规划下一步操作
 ```
 
 ---
@@ -226,44 +214,25 @@ Claude Code uses target data to plan next actions
 
 ### 凭据处理
 - **绝不** 将明文密码或 NT 哈希发送给云端 LLM 提供者
-- AI Service Layer 在构建提示词上下文之前必须对凭据进行脱敏处理
-- 暴露凭据的 MCP 工具应要求用户明确确认
-- 考虑添加 `weaponized.ai.redactCredentials` 设置项 (默认: `true`)
+- `buildUserContext()` 仅包含认证类型 (密码/NT 哈希/无)，永不包含实际密钥
+- `AIService.redactCredentials()` 将已知密码和 NT 哈希替换为 `[REDACTED]`
+- MCP `get_credentials` 工具返回完整凭据对象；AI IDE 内置的工具审批对话框提供用户控制
 
 ### 命令执行
-- 执行命令的 MCP 工具 (`run_command`, `run_scanner`) 必须:
-  - 在执行前向用户显示命令内容
-  - 要求明确批准 (VS Code 内置了 MCP 工具审批机制)
-  - 将所有 AI 发起的命令记录到终端记录器
-
-### 数据泄露防护
-- Foam 笔记可能包含敏感的任务数据
-- `search_notes` MCP 工具默认应仅返回笔记标题/元数据
-- 获取完整笔记内容应需要单独的、明确的工具调用
+- 执行命令的 MCP 工具 (`send_to_terminal`, `create_terminal`) 受 VS Code 内置 MCP 工具审批机制约束
+- 用户必须在执行前明确批准工具调用
+- 终端配置文件 (netcat, msfconsole 等) 使用预配置的处理器
 
 ### 审计追踪
-- 所有 AI 交互应记录到单独的 `ai-actions.log` 文件中
-- 包含: 时间戳、来源 (chat/mcp)、操作、参数、结果
-
----
-
-## 实现优先级
-
-| 阶段 | 内容 | 原因 | 工作量 |
-|------|------|------|--------|
-| 1 | Copilot Chat Participant | 用户价值最高，VS Code 原生支持 | 2-3 天 |
-| 2 | MCP Server (只读) | 支持 AI IDE，风险低 | 2-3 天 |
-| 3 | MCP Server (工具) | 完整的 AI 自动化 | 3-5 天 |
-| 4 | 本地 LLM 支持 | 隔离网络环境 | 5-7 天 |
-
-从阶段 1 开始 -- 它所需的基础设施最少，且提供最明显的价值。
+- MCP 服务器通过扩展日志记录器记录请求和错误
+- 所有通过 Copilot Chat 的 AI 交互在 VS Code 聊天历史中可见
 
 ---
 
 ## 相关文档
 
-- `docs/02-COPILOT-CHAT-PARTICIPANT.md` -- 详细实现指南
-- `docs/03-MCP-SERVER-GUIDE.md` -- MCP 服务器实现指南
-- `docs/04-CODE-QUALITY.md` -- AI 集成前需修复的代码问题
-- `docs/05-TESTING-STRATEGY.md` -- 包含 AI 功能的测试计划
-- `docs/06-FEATURE-ROADMAP.md` -- 完整功能路线图
+- [docs/architecture/copilot-chat.md](copilot-chat.md) -- Copilot Chat Participant 实现指南
+- [docs/architecture/mcp-server.md](mcp-server.md) -- MCP 服务器实现指南
+- [docs/architecture/code-quality.md](code-quality.md) -- 代码质量说明
+- [docs/architecture/testing-strategy.md](testing-strategy.md) -- 包含 AI 功能的测试计划
+- [docs/architecture/feature-roadmap.md](feature-roadmap.md) -- 完整功能路线图

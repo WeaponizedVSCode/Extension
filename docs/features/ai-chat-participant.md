@@ -39,9 +39,9 @@ Every conversation automatically includes:
 
 After each response, contextual follow-up actions are suggested. For example, after `/analyze`, the participant suggests `/suggest` and `/generate`.
 
-### Credential Redaction
+### Credential Protection
 
-The AI service includes automatic credential redaction to avoid leaking passwords/hashes to the LLM.
+Credential values (passwords, hashes) are never sent to the LLM. The user context builder (`buildUserContext()` in `prompts/userContext.ts`) only includes authentication type information (e.g., "password", "hash") and username/domain mappings -- it never includes actual credential values. While `AIService.redactCredentials()` exists as a utility, the primary protection is that sensitive values are simply never included in the context that is built for the LLM.
 
 ## Key Files
 

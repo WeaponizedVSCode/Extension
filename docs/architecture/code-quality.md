@@ -34,13 +34,11 @@ For HTTPS requests, the code sets `process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0
 
 **Fix:** Remove the env var mutation. The per-agent `rejectUnauthorized: false` is sufficient. Optionally add a visual indicator in the response output.
 
-### 4. Inconsistent Error Handling in Foam Access
+### 4. ~~Inconsistent Error Handling in Foam Access~~ (Resolved)
 
 **File:** `src/platform/vscode/context.ts`
 
-The `Foam()` static method has three code paths. The "extension not active → activate it" path lacks a try/catch. If `foamExtension.activate()` rejects, it becomes an unhandled promise rejection.
-
-**Fix:** Wrap the activate + export-read sequence in a single try/catch, returning `undefined` on failure.
+**Status:** Fixed. `Context.Foam()` now wraps the activate + export-read sequence in a try/catch, returning `undefined` on failure.
 
 ---
 
@@ -69,7 +67,7 @@ Consider enabling these rules:
 | Priority | Issue | Effort | Impact |
 |----------|-------|--------|--------|
 | 1 | defaultCollects eager eval (#1) | 30 min | Settings hot-reload |
-| 2 | Foam error handling (#4) | 15 min | Reliability |
+| 2 | ~~Foam error handling (#4)~~ | ~~15 min~~ | ~~Reliability~~ (Fixed) |
 | 3 | SSL global side effect (#3) | 10 min | Security hygiene |
 | 4 | callback type (#2) | 30 min | Type safety |
 | 5 | ESLint rules (#7) | 30 min | Long-term quality |

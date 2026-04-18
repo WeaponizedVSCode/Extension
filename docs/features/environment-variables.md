@@ -80,4 +80,5 @@ proxys on|off|show      # Proxy switching
 ## Key Files
 
 - `src/features/targets/sync/markdownSync.ts` — Parses and exports variables
-- `src/features/targets/sync/stateWriter.ts` — Writes state to `.weapon-state/`
+- `src/features/targets/sync/index.ts` — Sync entry point
+- `src/features/targets/sync/graphBuilder.ts` — Builds the target graph

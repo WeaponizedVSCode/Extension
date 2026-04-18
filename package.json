@@ -322,7 +322,10 @@
     "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
-    "test:unit": "vscode-test --label unit"
+    "test:unit": "vscode-test --label unit",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
@@ -342,6 +345,7 @@
     "ts-loader": "^9.5.2",
     "ts-morph": "^26.0.0",
     "typescript": "^5.8.3",
+    "vitepress": "^1.6.4",
     "webpack": "^5.99.9",
     "webpack-cli": "^6.0.1",
     "zod": "^4.3.6"

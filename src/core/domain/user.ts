@@ -14,10 +14,10 @@ interface innerUserCredential {
 }
 
 export function parseUserCredentialsYaml(content: string): UserCredential[] {
-  let userContent = yamlParse(content) as innerUserCredential[];
-  let ret: UserCredential[] = [];
-  for (let user of userContent) {
-    let newUser = new UserCredential().init(user);
+  const userContent = yamlParse(content) as innerUserCredential[];
+  const ret: UserCredential[] = [];
+  for (const user of userContent) {
+    const newUser = new UserCredential().init(user);
     ret.push(newUser);
   }
   return ret;
@@ -48,8 +48,8 @@ export class UserCredential {
   }
 
   exportEnvironmentCollects(): Collects {
-    let safename = envVarSafer(this.user);
-    let collects = {} as Collects;
+    const safename = envVarSafer(this.user);
+    const collects = {} as Collects;
 
     collects[`USER_${safename}`] = this.user;
     if (this.login && (this.login !== "" || this.login !== this.user)) {
@@ -77,9 +77,9 @@ export class UserCredential {
     }
 
     if (this.props) {
-      for (let key in this.props) {
+      for (const key in this.props) {
         if (key.startsWith("ENV_")) {
-          let realkey = key.replace("ENV_", "");
+          const realkey = key.replace("ENV_", "");
           collects[`${envVarSafer(realkey)}`] = this.props[key];
         }
         // collects[`${envVarSafer(key)}`] = this.props[key];
@@ -93,9 +93,9 @@ export class UserCredential {
     switch (format) {
       default:
       case "env":
-        let collects = this.exportEnvironmentCollects();
+        const collects = this.exportEnvironmentCollects();
         ret = "export ";
-        for (let key in collects) {
+        for (const key in collects) {
           ret += `${key}='${collects[key]}' `;
         }
         ret = ret.trim();
@@ -145,7 +145,7 @@ export function dumpUserCredentials(
     return ret;
   }
   if (format === "table") {
-    let header = [
+    const header = [
       "Login",
       "Username",
       "Password",
@@ -153,10 +153,10 @@ export function dumpUserCredentials(
       "Is Current",
       "Properties",
     ];
-    let data: string[][] = [header];
-    for (let user of users) {
+    const data: string[][] = [header];
+    for (const user of users) {
       let props_str = "";
-      for (let key in user.props) {
+      for (const key in user.props) {
         props_str += `${key}=${user.props[key]}\n`;
       }
       data.push([
@@ -168,7 +168,7 @@ export function dumpUserCredentials(
         props_str,
       ]);
     }
-    let t: string = table(data, {
+    const t: string = table(data, {
       header: {
         content: "User Credentials",
       },
@@ -183,21 +183,21 @@ export function dumpUserCredentials(
     });
     return t;
   }
-  for (let u of users) {
-    let user = new UserCredential().init(u);
+  for (const u of users) {
+    const user = new UserCredential().init(u);
     ret += `${user.dumpUser(format)}\n`;
   }
   return ret;
 }
 
 function test() {
-  let usera = new UserCredential();
+  const usera = new UserCredential();
   usera.init({
     login: "github.com",
   });
   usera.setAsCurrent();
   console.log(usera.dumpUser());
-  let content = `
+  const content = `
 - login: github.com
   username: usera
   password: password
@@ -206,7 +206,7 @@ function test() {
   nt_hash: 0123456789ABCDEF0123456789ABCDEF
   is_current: true
 `;
-  let users = parseUserCredentialsYaml(content);
+  const users = parseUserCredentialsYaml(content);
   console.log(dumpUserCredentials(users, "nxc"));
 }
 

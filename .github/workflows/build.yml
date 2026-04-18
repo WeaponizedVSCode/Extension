@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
         name: Install pnpm
@@ -30,14 +32,30 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Compile tests
+        run: pnpm run compile-tests
+
+      - name: Install Xvfb
+        run: sudo apt-get install -y xvfb
+
+      - name: Run unit tests
+        run: xvfb-run -a pnpm run test:unit
+
+      - name: Set version from tag
+        run: npx json -I -f package.json -e "this.version='${GITHUB_REF_NAME}'"
+
       - name: Build extension
         run: pnpm run vscode:publish
+
+      - name: Publish to OpenVSX
+        run: npx ovsx publish ${{ github.workspace }}/*.vsix -p ${{ secrets.OPENVSX_ACCESS_TOKEN }}
 
       - run: |
           cd $GITHUB_WORKSPACE
           ls -al 
-          git fetch --all 
-          git fetch --tags
           git tag -l
 
           LATEST_TAG=`git tag --sort=refname |tail -n 2 |head -n 1`

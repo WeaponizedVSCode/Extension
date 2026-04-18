@@ -21,6 +21,21 @@ export {
     URI
 } from "./foam";
 
+export {
+    GraphNode,
+    GraphEdge,
+    RelationshipGraph,
+    longestReferencePath
+} from "./graph";
+
+export {
+    Finding,
+    FindingFilter,
+    parseFindingNote,
+    generateFindingMarkdown,
+    filterFindings
+} from "./finding";
+
 import { UserCredential } from "./user";
 import { Host } from "./host";
 

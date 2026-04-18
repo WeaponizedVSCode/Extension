@@ -9,10 +9,13 @@ import {
   startTempTerminalRecord,
   stopTempTerminalForCapture,
 } from "./recorder";
+import { TerminalBridge } from "./bridge";
 import * as vscode from "vscode";
+import { logger } from "../../platform/vscode/logger";
 
 export function registerTerminalUtils(context: vscode.ExtensionContext) {
   activate();
+
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "weaponized.terminal-logger.register",
@@ -40,4 +43,26 @@ export function registerTerminalUtils(context: vscode.ExtensionContext) {
       WebDeliveryWeaponizedTerminalProvider
     )
   );
+}
+
+export function registerMcpBridge(context: vscode.ExtensionContext): TerminalBridge | undefined {
+  const stateDir = context.storageUri;
+  if (!stateDir) {
+    logger.warn("No storageUri available, skipping MCP bridge registration");
+    return undefined;
+  }
+  const bridge = new TerminalBridge(stateDir);
+  bridge.activate().catch((e) => logger.error("TerminalBridge activation failed", e));
+
+  // Register profile providers so the MCP create_terminal tool can reference them
+  const providers = new Map<string, vscode.TerminalProfileProvider>([
+    ["netcat", NetcatWeaponizedTerminalProvider],
+    ["msfconsole", MsfconsoleWeaponizedTerminalProvider],
+    ["meterpreter", MeterpreterWeaponizedTerminalProvider],
+    ["web-delivery", WebDeliveryWeaponizedTerminalProvider],
+  ]);
+  bridge.setProfileProviders(providers);
+
+  context.subscriptions.push({ dispose: () => bridge.dispose() });
+  return bridge;
 }

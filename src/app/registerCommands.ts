@@ -20,6 +20,7 @@ import {
 import { cyberChefMagicDecoder } from "../features/decoder";
 import { rawHTTPRequest, rawHTTPRequestToCurl } from "../features/http";
 import { CreateNoteFile } from "../features/notes/reports";
+import { installMcpServer } from "../features/mcp/install";
 
 export function registerCommands(context: vscode.ExtensionContext) {
   context.subscriptions.push(
@@ -57,6 +58,7 @@ export function registerCommands(context: vscode.ExtensionContext) {
       "weapon.http_raw_request_to_curl",
       rawHTTPRequestToCurl
     ),
-    vscode.commands.registerCommand("weapon.note.creation", CreateNoteFile)
+    vscode.commands.registerCommand("weapon.note.creation", CreateNoteFile),
+    vscode.commands.registerCommand("weapon.mcp.install", installMcpServer)
   );
 }

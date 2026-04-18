@@ -7,6 +7,10 @@ import { logger } from "../../platform/vscode/logger";
 export class Context {
   private static _extContext: ExtensionContext;
   private static _foam: Foam;
+  private static _hostCache: Host[] | undefined;
+  private static _hostDirty = true;
+  private static _userCache: UserCredential[] | undefined;
+  private static _userDirty = true;
 
   public static get context(): ExtensionContext {
     return this._extContext;
@@ -17,42 +21,34 @@ export class Context {
   }
 
   public static get UserState(): UserCredential[] | undefined {
-    let users = this.context.workspaceState.get<UserCredential[]>("users");
-    if (users) {
-      let returns: UserCredential[] = [];
-      for (let u of users) {
-        let user = new UserCredential().init(u);
-        returns.push(user);
-      }
-      return returns;
-    } else {
-      return undefined;
+    if (this._userDirty) {
+      const users = this.context.workspaceState.get<UserCredential[]>("users");
+      this._userCache = users?.map((u) => new UserCredential().init(u));
+      this._userDirty = false;
     }
+    return this._userCache;
   }
 
   public static set UserState(us: UserCredential[]) {
     this.context.workspaceState.update("users", us);
+    this._userDirty = true;
   }
 
   public static get HostState(): Host[] | undefined {
-    let hosts = this.context.workspaceState.get<Host[]>("hosts");
-    if (hosts) {
-      let returns: Host[] = [];
-      for (let h of hosts) {
-        let host = new Host().init(h);
-        returns.push(host);
-      }
-      return returns;
-    } else {
-      return undefined;
+    if (this._hostDirty) {
+      const hosts = this.context.workspaceState.get<Host[]>("hosts");
+      this._hostCache = hosts?.map((h) => new Host().init(h));
+      this._hostDirty = false;
     }
+    return this._hostCache;
   }
 
   public static set HostState(hs: Host[]) {
     this.context.workspaceState.update("hosts", hs);
+    this._hostDirty = true;
   }
 
-  public async Foam(): Promise<Foam | undefined> {
+  public static async Foam(): Promise<Foam | undefined> {
     if (!Context._foam) {
       const foamExtension = vscode.extensions.getExtension("foam.foam-vscode");
       if (!foamExtension) {
@@ -63,29 +59,16 @@ export class Context {
         return undefined;
       }
       logger.info("Foam extension is installed.");
-      if (!foamExtension.isActive) {
-        logger.info("Foam extension is not active. Activating...");
-        const { foam } = await foamExtension.activate();
-        logger.info("Foam extension activated.");
-        logger.debug(
-          "Foam extension exports:",
-          Object.keys(foamExtension.exports),
-          Object.keys(foam),
-        );
-        Context._foam = foam;
-        return Context._foam;
-        // this.context.subscriptions.push(this._foam);
-      }
-      logger.info("Foam extension is active.");
       try {
+        if (!foamExtension.isActive) {
+          logger.info("Foam extension is not active. Activating...");
+          await foamExtension.activate();
+          logger.info("Foam extension activated.");
+        }
         const { foam } = foamExtension.exports;
         Context._foam = foam as Foam;
-        return Context._foam;
       } catch (e) {
-        logger.error("Error getting foam from foam extension exports:", e);
-        vscode.window.showErrorMessage(
-          "Error getting foam from foam extension exports.",
-        );
+        logger.error("Failed to get Foam:", e);
         return undefined;
       }
     }

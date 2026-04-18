@@ -13,8 +13,7 @@ export const CreateNoteFile: callback = async (args) => {
     };
   }
 
-  const ctx = new Context();
-  const foam = await ctx.Foam();
+  const foam = await Context.Foam();
 
   if (!foam) {
     vscode.window.showErrorMessage(

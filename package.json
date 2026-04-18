@@ -93,6 +93,11 @@
         "category": "weapon foam"
       },
       {
+        "command": "weapon.mcp.install",
+        "title": "Install MCP server to workspace",
+        "category": "weapon management"
+      },
+      {
         "command": "foam-vscode.show-graph",
         "title": "Show Foam Graph",
         "category": "weapon foam"
@@ -102,6 +107,17 @@
       "title": "weaponized vscode Extension Settings",
       "type": "object",
       "properties": {
+        "weaponized.ai.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable AI features: @weapon Copilot Chat participant and MCP server integration (.weapon-state/ sync). Disable to reduce extension footprint if you don't use AI assistants. Requires reload."
+        },
+        "weaponized.mcp.port": {
+          "type": "integer",
+          "default": 25789,
+          "format": "port",
+          "description": "Preferred port for the embedded MCP HTTP server (http://127.0.0.1:<port>/mcp). If the port is already in use, the OS will assign a free port automatically and mcp.json will be updated. Requires reload."
+        },
         "weaponized.lhost": {
           "type": "string",
           "default": "$LHOST",
@@ -258,6 +274,37 @@
         "language": "markdown",
         "path": "src/snippets/source/weapon/weapon.json"
       }
+    ],
+    "chatParticipants": [
+      {
+        "id": "weapon.chat",
+        "fullName": "Weaponized Assistant",
+        "name": "weapon",
+        "description": "AI assistant for penetration testing workflows. Aware of your current targets, credentials, and engagement notes.",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "analyze",
+            "description": "Analyze tool output (nmap, BloodHound, etc.)"
+          },
+          {
+            "name": "suggest",
+            "description": "Suggest next steps for the current target"
+          },
+          {
+            "name": "generate",
+            "description": "Generate a command from natural language"
+          },
+          {
+            "name": "report",
+            "description": "Summarize engagement findings"
+          },
+          {
+            "name": "explain",
+            "description": "Explain a concept, tool, or technique"
+          }
+        ]
+      }
     ]
   },
   "scripts": {
@@ -274,9 +321,14 @@
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "test:unit": "vscode-test --label unit",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@types/http-string-parser": "^0.0.33",
     "@types/lodash": "^4.17.23",
     "@types/mocha": "^10.0.10",
@@ -293,8 +345,10 @@
     "ts-loader": "^9.5.2",
     "ts-morph": "^26.0.0",
     "typescript": "^5.8.3",
+    "vitepress": "^1.6.4",
     "webpack": "^5.99.9",
-    "webpack-cli": "^6.0.1"
+    "webpack-cli": "^6.0.1",
+    "zod": "^4.3.6"
   },
   "dependencies": {
     "fetch-to-curl": "^0.6.0",

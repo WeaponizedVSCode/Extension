@@ -6,9 +6,9 @@ export const envVarSafer = (variable: string): string => {
 export type Collects = { [key: string]: string };
 
 export function mergeCollects(...cs: Collects[]): Collects {
-  let ret: Collects = {};
-  for (let c of cs) {
-    for (let key in c) {
+  const ret: Collects = {};
+  for (const c of cs) {
+    for (const key in c) {
       if (ret[key]) {
         continue;
       }

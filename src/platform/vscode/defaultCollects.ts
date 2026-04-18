@@ -48,18 +48,16 @@ export const hash_collects: Collects = mergeCollects(
   hash_type_collects
 );
 
-let weapon_config_collects: Collects = {
-  LHOST: vscode.workspace.getConfiguration("weaponized").get("lhost", "LHOST"),
-  LPORT: vscode.workspace.getConfiguration("weaponized").get("lport") || "6789",
-  LISTEN_ON:
-    vscode.workspace.getConfiguration("weaponized").get("listenon") || "8890",
-};
+export function getDefaultCollects(): Collects {
+  const config = vscode.workspace.getConfiguration("weaponized");
+  const weapon_config_collects: Collects = {
+    LHOST: config.get("lhost", "LHOST"),
+    LPORT: String(config.get("lport") || "6789"),
+    LISTEN_ON: String(config.get("listenon") || "8890"),
+  };
+  const weapon_envs: Collects = config.get("envs") || {};
+  return mergeCollects(hash_collects, weapon_config_collects, weapon_envs);
+}
 
-let weapon_envs: Collects =
-  vscode.workspace.getConfiguration("weaponized").get("envs") || {};
-
-export const defaultCollects: Collects = mergeCollects(
-  hash_collects,
-  weapon_config_collects,
-  weapon_envs
-);
+// Backward-compat: keep the old name for hashcat.ts
+export const defaultCollects: Collects = getDefaultCollects();

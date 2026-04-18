@@ -9,7 +9,7 @@ import {
 } from "../../../core";
 import { logger } from "../../../platform/vscode/logger";
 import { Context } from "../../../platform/vscode/context";
-import { defaultCollects } from "../../../platform/vscode/defaultCollects";
+import { getDefaultCollects } from "../../../platform/vscode/defaultCollects";
 import { extractYamlBlocksByIdentity } from "../../../core/markdown";
 
 export function getCodeblock(content: string, identity: string): string[] {
@@ -17,9 +17,9 @@ export function getCodeblock(content: string, identity: string): string[] {
 }
 
 function uniqueHosts(old_host: Host[]): Host[] {
-  let uniqmap = new Map<string, number>();
-  let newHost: Host[] = [];
-  for (let h of old_host) {
+  const uniqmap = new Map<string, number>();
+  const newHost: Host[] = [];
+  for (const h of old_host) {
     if (uniqmap.has(h.hostname)) {
       continue;
     }
@@ -30,9 +30,9 @@ function uniqueHosts(old_host: Host[]): Host[] {
 }
 
 function uniqueUsers(old_user: UserCredential[]): UserCredential[] {
-  let uniqmap = new Map<string, number>();
-  let newUser: UserCredential[] = [];
-  for (let u of old_user) {
+  const uniqmap = new Map<string, number>();
+  const newUser: UserCredential[] = [];
+  for (const u of old_user) {
     if (uniqmap.has(`${u.login}/${u.user}`)) {
       continue;
     }
@@ -77,33 +77,34 @@ export function mergeHostFromFile(
 export async function ProcessWorkspaceStateToEnvironmentCollects(
   workspace: vscode.WorkspaceFolder
 ) {
-  let collection = Context.context.environmentVariableCollection.getScoped({
+  const collection = Context.context.environmentVariableCollection.getScoped({
     workspaceFolder: workspace,
   });
   logger.info(`Processing workspaceState on workspace: ${workspace.name}`);
   collection.clear();
   logger.trace(`Cleared environment variable collection for workspace: ${workspace.name}`);
-  defaultCollects["PROJECT_FOLDER"] = workspace.uri.fsPath;
+  const collects_defaults = getDefaultCollects();
+  collects_defaults["PROJECT_FOLDER"] = workspace.uri.fsPath;
 
   let ul: Collects = {};
-  let old_user_list = Context.UserState;
+  const old_user_list = Context.UserState;
   if (old_user_list) {
-    for (let user of old_user_list) {
-      var uc = user.exportEnvironmentCollects();
+    for (const user of old_user_list) {
+      const uc = user.exportEnvironmentCollects();
       ul = mergeCollects(ul, uc);
     }
   }
 
   let hl: Collects = {};
-  let old_host_list = Context.HostState;
+  const old_host_list = Context.HostState;
   if (old_host_list) {
-    for (let host of old_host_list) {
+    for (const host of old_host_list) {
       hl = mergeCollects(hl, host.exportEnvironmentCollects());
     }
   }
 
-  let collects = mergeCollects(ul, hl, defaultCollects);
-  for (let key in collects) {
+  const collects = mergeCollects(ul, hl, collects_defaults);
+  for (const key in collects) {
     logger.trace(
       `Setting environment variable into collections: ${key} => ${collects[key]}`
     );

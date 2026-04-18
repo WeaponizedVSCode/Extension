@@ -30,7 +30,7 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: 'Features', link: '/features/workspace-setup' },
-          { text: 'Architecture', link: '/architecture/ai-integration' },
+          { text: 'Architecture', link: '/architecture/architecture-overview' },
         ],
         sidebar: {
           '/features/': [
@@ -63,6 +63,8 @@ export default defineConfig({
             {
               text: 'Architecture',
               items: [
+                { text: 'Architecture Overview', link: '/architecture/architecture-overview' },
+                { text: 'Development Guide', link: '/architecture/development-guide' },
                 { text: 'AI Integration', link: '/architecture/ai-integration' },
                 { text: 'Copilot Chat', link: '/architecture/copilot-chat' },
                 { text: 'MCP Server Guide', link: '/architecture/mcp-server' },
@@ -82,13 +84,15 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: '功能', link: '/zh/features/workspace-setup' },
-          { text: '架构', link: '/zh/architecture/ai-integration' },
+          { text: '架构', link: '/zh/architecture/architecture-overview' },
         ],
         sidebar: {
           '/zh/architecture/': [
             {
               text: '架构',
               items: [
+                { text: '架构概览', link: '/zh/architecture/architecture-overview' },
+                { text: '开发指南', link: '/zh/architecture/development-guide' },
                 { text: 'AI 集成架构', link: '/zh/architecture/ai-integration' },
                 { text: 'Copilot Chat 参与者', link: '/zh/architecture/copilot-chat' },
                 { text: 'MCP 服务器指南', link: '/zh/architecture/mcp-server' },

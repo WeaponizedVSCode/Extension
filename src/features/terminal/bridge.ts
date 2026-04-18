@@ -69,6 +69,7 @@ export class TerminalBridge {
   }
 
   private trackTerminal(terminal: vscode.Terminal): void {
+    if (this.terminalMap.has(terminal)) return; // already tracked
     const id = String(this.nextId++);
     this.terminalMap.set(terminal, id);
   }
@@ -121,6 +122,47 @@ export class TerminalBridge {
     } catch {
       return `No output found for terminal ${id}`;
     }
+  }
+
+  /** Create a new terminal, optionally by profile name. Returns its bridge ID and name. */
+  createTerminal(opts?: { name?: string; profile?: string; cwd?: string }): { id: string; name: string } {
+    const profileProviders = this.profileProviders;
+    if (opts?.profile && profileProviders) {
+      const provider = profileProviders.get(opts.profile);
+      if (provider) {
+        const profile = provider.provideTerminalProfile(new vscode.CancellationTokenSource().token);
+        if (profile && "options" in profile) {
+          const termOpts = profile.options as vscode.TerminalOptions;
+          if (opts.cwd) {
+            termOpts.cwd = opts.cwd;
+          }
+          const terminal = vscode.window.createTerminal(termOpts);
+          terminal.show();
+          // Track immediately so we can return a valid ID
+          // (onDidOpenTerminal fires asynchronously)
+          this.trackTerminal(terminal);
+          const id = this.terminalMap.get(terminal)!;
+          return { id, name: terminal.name };
+        }
+      }
+    }
+    // Plain shell terminal
+    const termName = opts?.name ?? "shell";
+    const terminal = vscode.window.createTerminal({
+      name: termName,
+      cwd: opts?.cwd,
+    });
+    terminal.show();
+    this.trackTerminal(terminal);
+    const id = this.terminalMap.get(terminal)!;
+    return { id, name: terminal.name };
+  }
+
+  /** Register profile providers so createTerminal can look them up by name. */
+  private profileProviders: Map<string, vscode.TerminalProfileProvider> | undefined;
+
+  setProfileProviders(providers: Map<string, vscode.TerminalProfileProvider>): void {
+    this.profileProviders = providers;
   }
 
   /** Sends a command directly to a terminal without any file I/O. */

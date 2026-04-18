@@ -53,6 +53,16 @@ export function registerMcpBridge(context: vscode.ExtensionContext): TerminalBri
   }
   const bridge = new TerminalBridge(stateDir);
   bridge.activate().catch((e) => logger.error("TerminalBridge activation failed", e));
+
+  // Register profile providers so the MCP create_terminal tool can reference them
+  const providers = new Map<string, vscode.TerminalProfileProvider>([
+    ["netcat", NetcatWeaponizedTerminalProvider],
+    ["msfconsole", MsfconsoleWeaponizedTerminalProvider],
+    ["meterpreter", MeterpreterWeaponizedTerminalProvider],
+    ["web-delivery", WebDeliveryWeaponizedTerminalProvider],
+  ]);
+  bridge.setProfileProviders(providers);
+
   context.subscriptions.push({ dispose: () => bridge.dispose() });
   return bridge;
 }

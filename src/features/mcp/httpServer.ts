@@ -54,22 +54,34 @@ export class EmbeddedMcpServer {
   }
 
   async start(terminalBridge: TerminalBridge, preferredPort: number): Promise<number> {
-    const mcpServer = new McpServer({ name: "weaponized-vscode", version: "0.4.0" });
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-
-    this.registerResources(mcpServer);
-    this.registerTools(mcpServer, terminalBridge);
-    this.registerPrompts(mcpServer);
-
-    await mcpServer.connect(transport);
-
     const listenPort = await findAvailablePort(preferredPort);
 
-    this.httpServer = http.createServer((req, res) => {
-      if (req.url === "/mcp") {
-        transport.handleRequest(req, res);
-      } else {
+    // SDK v1.29+ stateless mode requires a fresh transport per request.
+    const self = this;
+    const handleWithFreshTransport = async (req: http.IncomingMessage, res: http.ServerResponse) => {
+      const server = new McpServer({ name: "weaponized-vscode", version: "0.4.0" });
+      const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+      self.registerResources(server);
+      self.registerTools(server, terminalBridge);
+      self.registerPrompts(server);
+      await server.connect(transport);
+      await transport.handleRequest(req, res);
+      await transport.close();
+      await server.close();
+    };
+
+    this.httpServer = http.createServer(async (req, res) => {
+      if (req.url !== "/mcp") {
         res.writeHead(404).end();
+        return;
+      }
+      try {
+        await handleWithFreshTransport(req, res);
+      } catch (err) {
+        logger.warn(`MCP request error: ${err}`);
+        if (!res.headersSent) {
+          res.writeHead(500).end();
+        }
       }
     });
 
@@ -304,6 +316,25 @@ export class EmbeddedMcpServer {
         const ok = bridge.sendCommandDirect(terminalId, command);
         return {
           content: [{ type: "text" as const, text: ok ? `Command sent to terminal ${terminalId}: ${command}` : `Terminal ${terminalId} not found` }],
+        };
+      }
+    );
+
+    server.tool(
+      "create_terminal",
+      "Create a new VS Code terminal. Use 'profile' to launch a pre-configured handler (netcat, msfconsole, meterpreter, web-delivery) or omit it for a plain shell.",
+      {
+        profile: z.enum(["netcat", "msfconsole", "meterpreter", "web-delivery", "shell"]).optional().describe(
+          "Terminal profile to use. Available profiles: netcat (reverse shell listener), msfconsole (Metasploit console), meterpreter (Meterpreter handler), web-delivery (HTTP file server), shell (plain terminal)"
+        ),
+        name: z.string().optional().describe("Custom terminal name (only used when profile is 'shell' or omitted)"),
+        cwd: z.string().optional().describe("Working directory for the terminal"),
+      },
+      async ({ profile, name, cwd }) => {
+        const effectiveProfile = profile === "shell" ? undefined : profile;
+        const result = bridge.createTerminal({ name, profile: effectiveProfile, cwd });
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ created: true, id: result.id, name: result.name, profile: profile ?? "shell" }) }],
         };
       }
     );

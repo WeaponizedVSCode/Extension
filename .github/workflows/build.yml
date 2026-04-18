@@ -44,8 +44,14 @@ jobs:
       - name: Run unit tests
         run: xvfb-run -a pnpm run test:unit
 
+      - name: Set version from tag
+        run: npx json -I -f package.json -e "this.version='${GITHUB_REF_NAME}'"
+
       - name: Build extension
         run: pnpm run vscode:publish
+
+      - name: Publish to OpenVSX
+        run: npx ovsx publish ${{ github.workspace }}/*.vsix -p ${{ secrets.OPENVSX_ACCESS_TOKEN }}
 
       - run: |
           cd $GITHUB_WORKSPACE

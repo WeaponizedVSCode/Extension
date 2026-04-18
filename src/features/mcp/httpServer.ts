@@ -13,7 +13,7 @@ import { UserCredential, dumpUserCredentials } from "../../core/domain/user";
 import type { UserDumpFormat } from "../../core/domain/user";
 import { buildRelationshipGraph } from "../targets/sync/graphBuilder";
 import type { Finding } from "../../core/domain/finding";
-import { parseFindingNote, generateFindingMarkdown } from "../../core/domain/finding";
+import { parseFindingNote, generateFindingMarkdown, filterFindings } from "../../core/domain/finding";
 import { findAvailablePort } from "./portManager";
 
 function updateFrontmatter(content: string, updates: Record<string, string | undefined>): string {
@@ -195,10 +195,22 @@ export class EmbeddedMcpServer {
     });
 
 
-    server.tool("list_findings", "List all findings — security issues discovered during the engagement", {}, async () => {
-      const findings = await this.getFindings();
-      return { content: [{ type: "text" as const, text: JSON.stringify(findings, null, 2) }] };
-    });
+    server.tool(
+      "list_findings",
+      "List or search findings. Filter by severity, tags, or free-text query matching title/description.",
+      {
+        severity: z.enum(["critical", "high", "medium", "low", "info"]).optional().describe("Filter by severity level"),
+        tags: z.array(z.string()).optional().describe("Filter by tags (returns findings matching ANY of the given tags)"),
+        query: z.string().optional().describe("Free-text search in title and description"),
+      },
+      async ({ severity, tags, query }) => {
+        let findings = await this.getFindings();
+        if (severity || tags?.length || query) {
+          findings = filterFindings(findings, { severity, tags, query });
+        }
+        return { content: [{ type: "text" as const, text: JSON.stringify(findings, null, 2) }] };
+      }
+    );
 
     server.tool(
       "get_finding",
@@ -216,23 +228,24 @@ export class EmbeddedMcpServer {
 
     server.tool(
       "create_finding",
-      "Create a new finding note with YAML frontmatter (title, severity, description)",
+      "Create a new finding note with YAML frontmatter (title, severity, tags, description)",
       {
         title: z.string().describe("Finding title (also used as filename)"),
         severity: z.enum(["critical", "high", "medium", "low", "info"]).optional().describe("Severity level (default: info)"),
+        tags: z.array(z.string()).optional().describe("Tags for categorization (e.g. ['sqli', 'web', 'owasp'])"),
         description: z.string().optional().describe("Description of the finding"),
         references: z.string().optional().describe("References or links"),
       },
-      async ({ title, severity, description, references }) => {
+      async ({ title, severity, tags, description, references }) => {
         const folders = vscode.workspace.workspaceFolders;
         if (!folders?.length) {
           return { content: [{ type: "text" as const, text: JSON.stringify({ error: "No workspace folder open" }) }] };
         }
         const safeName = title.replace(/[^a-zA-Z0-9-_]/g, "_");
         const uri = vscode.Uri.joinPath(folders[0].uri, "findings", safeName, `${safeName}.md`);
-        const md = generateFindingMarkdown({ title, severity, description, references });
+        const md = generateFindingMarkdown({ title, severity, tags, description, references });
         await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(md));
-        return { content: [{ type: "text" as const, text: JSON.stringify({ created: uri.fsPath, title, severity: severity ?? "info" }) }] };
+        return { content: [{ type: "text" as const, text: JSON.stringify({ created: uri.fsPath, title, severity: severity ?? "info", tags: tags ?? [] }) }] };
       }
     );
 

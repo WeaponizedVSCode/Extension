@@ -30,8 +30,10 @@ export {
 
 export {
     Finding,
+    FindingFilter,
     parseFindingNote,
-    generateFindingMarkdown
+    generateFindingMarkdown,
+    filterFindings
 } from "./finding";
 
 import { UserCredential } from "./user";

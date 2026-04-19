@@ -1,11 +1,12 @@
 import { MarkdownHTTPCodeLensGenerator } from "./base";
 import * as vscode from "vscode";
+import { Commands } from "../../../shared/commands";
 
 export const httpRepeaterCodeLens: MarkdownHTTPCodeLensGenerator = (post: string[], startLine: number, document: vscode.TextDocument): vscode.CodeLens[] => {
   const codeLenses: vscode.CodeLens[] = [];
   const cmd: vscode.Command = {
     title: "Send HTTP Request",
-    command: "weapon.http_raw_request",
+    command: Commands.HTTP_RAW_REQUEST,
     arguments: [
       {
         request: post.join("\r\n"),
@@ -15,7 +16,7 @@ export const httpRepeaterCodeLens: MarkdownHTTPCodeLensGenerator = (post: string
   };
   let cmd2: vscode.Command = {
     title: "Send HTTPS Request",
-    command: "weapon.http_raw_request",
+    command: Commands.HTTP_RAW_REQUEST,
     arguments: [
       {
         request: post.join("\r\n"),

@@ -10,7 +10,7 @@ import { basename, dirname } from "path";
 import { TerminalCaptureRecorder } from "./store";
 import { TerminalRecorderModeList, TerminalRecorderMode } from "./mode";
 
-export const startTempTerminalRecord: callback = async (args: any) => {
+export const startTempTerminalRecord: callback = async (args?: Record<string, unknown>) => {
   if (!vscode.workspace.workspaceFolders) {
     logger.error(
       "No workspace folders found. Cannot start temporary terminal record."
@@ -20,7 +20,7 @@ export const startTempTerminalRecord: callback = async (args: any) => {
     );
     return;
   }
-  let fp = args?.file;
+  let fp = args?.file as string | undefined;
   if (!fp) {
     fp = await vscode.window.showInputBox({
       prompt: "Enter the file path to save terminal log",
@@ -33,7 +33,7 @@ export const startTempTerminalRecord: callback = async (args: any) => {
     }
   }
   fp = variables(fp);
-  let loglevel = args?.loglevel;
+  let loglevel = args?.loglevel as string | undefined;
   if (!loglevel) {
     loglevel = await vscode.window.showQuickPick(TerminalRecorderModeList, {
       placeHolder: "Select log level for terminal capture",
@@ -55,7 +55,7 @@ export const startTempTerminalRecord: callback = async (args: any) => {
     loglevel === TerminalRecorderMode.CommandAndOutput
   ) {
     if (args?.processIds) {
-      processIds = args.processIds;
+      processIds = args.processIds as number[];
     } else {
       let choiceMaps = new Map<number, string>();
       for (const t of vscode.window.terminals) {
@@ -115,10 +115,10 @@ export const startTempTerminalRecord: callback = async (args: any) => {
   );
 };
 
-export const stopTempTerminalForCapture: callback = async (args: any) => {
+export const stopTempTerminalForCapture: callback = async (args?: Record<string, unknown>) => {
   // empty the listener
   logger.info("Unregistering terminal for capture.");
-  let fp = args?.file;
+  let fp = args?.file as string | undefined;
   if (!fp) {
     let options: string[] = [];
     for (const capture of TerminalCaptureRecorder.captures) {
@@ -158,7 +158,7 @@ export const stopTempTerminalForCapture: callback = async (args: any) => {
   );
 };
 
-export function activate() {
+export function activate(context: vscode.ExtensionContext) {
   if (
     vscode.workspace
       .getConfiguration("weaponized")
@@ -186,11 +186,13 @@ export function activate() {
     logger.info("Terminal logging is disabled in settings.");
   }
 
-  vscode.window.onDidStartTerminalShellExecution(
-    async (event: vscode.TerminalShellExecutionStartEvent) => {
-      for (const capture of TerminalCaptureRecorder.captures) {
-        await capture.listener(event);
+  context.subscriptions.push(
+    vscode.window.onDidStartTerminalShellExecution(
+      async (event: vscode.TerminalShellExecutionStartEvent) => {
+        for (const capture of TerminalCaptureRecorder.captures) {
+          await capture.listener(event);
+        }
       }
-    }
+    )
   );
 }

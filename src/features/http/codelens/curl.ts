@@ -1,11 +1,12 @@
 import { MarkdownHTTPCodeLensGenerator } from "./base";
 import * as vscode from "vscode";
+import { Commands } from "../../../shared/commands";
 
 export const httpToCurlCodeLens: MarkdownHTTPCodeLensGenerator = (post: string[], startLine: number, document: vscode.TextDocument): vscode.CodeLens[] => {
   const codeLenses: vscode.CodeLens[] = [];
   const cmd: vscode.Command = {
     title: "Copy in curl (HTTP)",
-    command: "weapon.http_raw_request_to_curl",
+    command: Commands.HTTP_TO_CURL,
     arguments: [
       {
         request: post.join("\r\n"),
@@ -15,7 +16,7 @@ export const httpToCurlCodeLens: MarkdownHTTPCodeLensGenerator = (post: string[]
   };
   let cmd2: vscode.Command = {
     title: "Copy in curl (HTTPS)",
-    command: "weapon.http_raw_request_to_curl",
+    command: Commands.HTTP_TO_CURL,
     arguments: [
       {
         request: post.join("\r\n"),

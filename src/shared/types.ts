@@ -1,2 +1,2 @@
-export type callback = (...args: any[]) => any;
+export type callback = (args?: Record<string, unknown>) => unknown | Promise<unknown>;
 

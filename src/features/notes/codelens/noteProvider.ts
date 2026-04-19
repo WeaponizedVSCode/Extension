@@ -60,10 +60,10 @@ export class NoteCreationProvider implements vscode.CodeLensProvider {
     document: vscode.TextDocument,
     token: vscode.CancellationToken
   ): vscode.ProviderResult<vscode.CodeLens[]> {
-    var codeLenses = [];
+    const codeLenses = [];
     const lines = document.getText().split("\n");
 
-    for (var i = 0; i < lines.length; i++) {
+    for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       const lino = i; // Line numbers are 1-based in VSCode
       let configtype: ConfigType | undefined = undefined;

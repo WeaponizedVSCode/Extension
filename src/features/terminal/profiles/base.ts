@@ -2,9 +2,10 @@ import * as vscode from "vscode";
 import { logger } from "../../../platform/vscode/logger";
 
 export class BaseWeaponizedTerminalProvider
-  implements vscode.TerminalProfileProvider
+  implements vscode.TerminalProfileProvider, vscode.Disposable
 {
   uniqueName: string = "";
+  private readonly _disposable: vscode.Disposable;
 
   handler = (): string[] => {
     return [];
@@ -19,13 +20,17 @@ export class BaseWeaponizedTerminalProvider
     if (msg) {
       this.msg = msg;
     }
-    vscode.window.onDidOpenTerminal((terminal) => {
+    this._disposable = vscode.window.onDidOpenTerminal((terminal) => {
       if (terminal.name === this.uniqueName) {
-        let sendCommand = this.handler().join(" ");
+        const sendCommand = this.handler().join(" ");
         logger.debug(`Terminal ${this.uniqueName} opened. Sending command: ${sendCommand}`);
         terminal.sendText(sendCommand);
       }
     });
+  }
+
+  dispose(): void {
+    this._disposable.dispose();
   }
 
   provideTerminalProfile(

@@ -12,7 +12,7 @@ export let BloodhoundDefinitionProvider = new BaseDefinitionProvider(
             return undefined;
         }
         logger.debug(`request keyword ${word}`);
-        const description = (bloodSnippet as any)[word] || '';
+        const description = (bloodSnippet as Record<string, BigDefinition>)[word];
         return description;
     }
 ); 

@@ -5,7 +5,7 @@ import { Context } from "../../../platform/vscode/context";
 import { dumpHosts, parseHostsYaml, Host, extractYamlBlocksByIdentity, replaceFencedBlockContent } from "../../../core";
 
 export const switchActiveHost: callback = async (args) => {
-  let host: Host | undefined = args?.host;
+  let host: Host | undefined = args?.host as Host | undefined;
   if (!host) {
     let hostList = Context.HostState;
     if (!hostList || hostList.length === 0) {
@@ -14,7 +14,7 @@ export const switchActiveHost: callback = async (args) => {
     }
 
     let hostOptions = hostList.map((h) => `${h.hostname}(${h.ip})`);
-    var hostString = await vscode.window.showQuickPick(hostOptions, {
+    const hostString = await vscode.window.showQuickPick(hostOptions, {
       placeHolder: "Select a host to switch",
     });
     if (!hostString) {

@@ -55,11 +55,12 @@ export class EmbeddedMcpServer {
 
   async start(terminalBridge: TerminalBridge, preferredPort: number): Promise<number> {
     const listenPort = await findAvailablePort(preferredPort);
+    const MAX_BODY_BYTES = 1024 * 1024; // 1 MB
 
     // SDK v1.29+ stateless mode requires a fresh transport per request.
     const self = this;
     const handleWithFreshTransport = async (req: http.IncomingMessage, res: http.ServerResponse) => {
-      const server = new McpServer({ name: "weaponized-vscode", version: "0.4.0" });
+      const server = new McpServer({ name: "weaponized-vscode", version: "1.0.0" });
       const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
       self.registerResources(server);
       self.registerTools(server, terminalBridge);
@@ -75,14 +76,30 @@ export class EmbeddedMcpServer {
         res.writeHead(404).end();
         return;
       }
-      try {
-        await handleWithFreshTransport(req, res);
-      } catch (err) {
-        logger.warn(`MCP request error: ${err}`);
-        if (!res.headersSent) {
-          res.writeHead(500).end();
+      // Enforce body size limit
+      let bodySize = 0;
+      let aborted = false;
+      req.on("data", (chunk: Buffer) => {
+        bodySize += chunk.length;
+        if (bodySize > MAX_BODY_BYTES) {
+          aborted = true;
+          res.writeHead(413, { "Content-Type": "application/json" }).end(
+            JSON.stringify({ error: "Request body too large" })
+          );
+          req.destroy();
         }
-      }
+      });
+      req.on("end", async () => {
+        if (aborted) return;
+        try {
+          await handleWithFreshTransport(req, res);
+        } catch (err) {
+          logger.warn(`MCP request error: ${err}`);
+          if (!res.headersSent) {
+            res.writeHead(500).end();
+          }
+        }
+      });
     });
 
     return new Promise((resolve, reject) => {

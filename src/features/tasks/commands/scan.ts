@@ -6,13 +6,13 @@ import { Context } from "../../../platform/vscode/context";
 import { Collects, Host } from "../../../core";
 import { variables } from "../../../platform/vscode/variables";
 
-export const scanCommand: callback = async (args: any) => {
+export const scanCommand: callback = async (args?: Record<string, unknown>) => {
   let selectTargets = Context.HostState;
   if (args?.hosts) {
-    selectTargets = args.hosts;
+    selectTargets = args.hosts as Host[];
   }
 
-  let target: string | undefined = args?.target;
+  let target: string | undefined = args?.target as string | undefined;
   if (!target) {
     if (!selectTargets || selectTargets.length === 0) {
       vscode.window.showErrorMessage("No hosts found to scan.");
@@ -70,7 +70,7 @@ export const scanCommand: callback = async (args: any) => {
     return;
   }
 
-  let scanner: string | undefined = args?.scanner;
+  let scanner: string | undefined = args?.scanner as string | undefined;
   if (!scanner) {
     let options: string[] = Object.keys(scannerConfig);
     scanner = await vscode.window.showQuickPick(options, {

@@ -11,13 +11,13 @@ interface FileOptionItem {
 }
 
 export const filepicker: callback = async (
-  args: any
+  args?: Record<string, unknown>
 ): Promise<string | undefined> => {
   if (!vscode.workspace.workspaceFolders?.length) {
     return;
   }
 
-  let dir: vscode.Uri | undefined = args?.dir;
+  let dir: vscode.Uri | undefined = args?.dir as vscode.Uri | undefined;
   if (!dir) {
     if (vscode.workspace.workspaceFolders.length > 0) {
       dir = vscode.workspace.workspaceFolders[0].uri;

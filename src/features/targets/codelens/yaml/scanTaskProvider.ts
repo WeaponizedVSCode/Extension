@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { MarkdownCodeLensGenerator } from "./base";
 import { parseHostsYaml } from "../../../../core";
 import { logger } from "../../../../platform/vscode/logger";
+import { Commands } from "../../../../shared/commands";
 
 export const GenerateScanTaskCodeLens: MarkdownCodeLensGenerator = (
   configtype,
@@ -21,14 +22,14 @@ export const GenerateScanTaskCodeLens: MarkdownCodeLensGenerator = (
     let currentSubConfig: string[] = [];
     let old_startLine = startLine;
     // process each line if line first character is "-", it is a new sub-config begin signifier
-    for (var i = 0; i < lns.length; i++) {
+    for (let i = 0; i < lns.length; i++) {
       if (lns[i].length !== 0 && lns[i][0] === "-") {
         if (currentSubConfig.length > 0) {
           // Process the previous sub-config
           let Hosts = parseHostsYaml(currentSubConfig.join("\n")); // Join the previous sub-config lines
           const cmd: vscode.Command = {
             title: `Scan host`,
-            command: "weapon.task.scan",
+            command: Commands.TASK_SCAN,
             arguments: [{ hosts: Hosts }],
           };
           codeLenses.push(
@@ -56,7 +57,7 @@ export const GenerateScanTaskCodeLens: MarkdownCodeLensGenerator = (
       logger.debug(`Parsed hosts: ${JSON.stringify(Hosts)}`);
       const cmd: vscode.Command = {
         title: `Scan host`,
-        command: "weapon.task.scan",
+        command: Commands.TASK_SCAN,
         arguments: [{ hosts: Hosts }],
       };
       codeLenses.push(
@@ -77,7 +78,7 @@ export const GenerateScanTaskCodeLens: MarkdownCodeLensGenerator = (
 
   const cmd: vscode.Command = {
     title: `Scan host`,
-    command: "weapon.task.scan",
+    command: Commands.TASK_SCAN,
     arguments: [{ hosts: Hosts }],
   };
 

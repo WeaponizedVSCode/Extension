@@ -6,12 +6,7 @@ import { fs } from "./assets";
 import { createNote } from "./report";
 
 export const CreateNoteFile: callback = async (args) => {
-  if (!args) {
-    args = {
-      type: "",
-      name: "",
-    };
-  }
+  const mutableArgs: Record<string, unknown> = args ?? { type: "", name: "" };
 
   const foam = await Context.Foam();
 
@@ -33,7 +28,7 @@ export const CreateNoteFile: callback = async (args) => {
   const folder = workspaceFolders[0].uri;
 
   // args type of notes
-  let noteType: string = args.type || "";
+  let noteType: string = (mutableArgs.type as string) || "";
   // logger.info(`trying to Creating note of type: ${noteType}`);
   if (
     !noteType ||
@@ -51,7 +46,7 @@ export const CreateNoteFile: callback = async (args) => {
       vscode.window.showErrorMessage("No note type selected.");
       return;
     }
-    args.type = selectedType;
+    mutableArgs.type = selectedType;
     noteType = selectedType;
   }
   if (!noteType) {
@@ -61,9 +56,9 @@ export const CreateNoteFile: callback = async (args) => {
   let noteT = noteType as "host" | "user" | "service" | "finding" | "report";
   logger.info("note type: " + noteT);
   // note name
-  let noteName: string = args.name || "";
+  let noteName: string = (mutableArgs.name as string) || "";
   if (!noteName) {
-    var placeholder = "";
+    let placeholder = "";
     switch (noteT) {
       case "host":
         placeholder = "xxxx.com";
@@ -85,7 +80,7 @@ export const CreateNoteFile: callback = async (args) => {
         break;
     }
 
-    var input = await vscode.window.showInputBox({
+    const input = await vscode.window.showInputBox({
       prompt: "Enter the name of the note",
       placeHolder: `Note Name for ${noteType}, e.g. ${placeholder}`,
     });
@@ -96,7 +91,7 @@ export const CreateNoteFile: callback = async (args) => {
     noteName = input.trim();
   }
 
-  var name = noteName.split("@"); // sanitize the name
+  const name = noteName.split("@"); // sanitize the name
   let domain = "default";
   let id = "default";
   if (name.length === 2) {
@@ -114,7 +109,7 @@ export const CreateNoteFile: callback = async (args) => {
 
     let content: string = "";
     if (noteT === "report") {
-      var res = await createNote({
+      const res = await createNote({
         logger,
         foam,
       });

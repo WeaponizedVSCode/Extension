@@ -21,44 +21,45 @@ import { cyberChefMagicDecoder } from "../features/decoder";
 import { rawHTTPRequest, rawHTTPRequestToCurl } from "../features/http";
 import { CreateNoteFile } from "../features/notes/reports";
 import { installMcpServer } from "../features/mcp/install";
+import { Commands } from "../shared/commands";
 
 export function registerCommands(context: vscode.ExtensionContext) {
   context.subscriptions.push(
-    vscode.commands.registerCommand("weapon.dump_hosts", dumpetchosts),
-    vscode.commands.registerCommand("weapon.dump_users", dumpalluser),
-    vscode.commands.registerCommand("weapon.switch_host", switchActiveHost),
-    vscode.commands.registerCommand("weapon.switch_user", switchActiveUser),
+    vscode.commands.registerCommand(Commands.DUMP_HOSTS, dumpetchosts),
+    vscode.commands.registerCommand(Commands.DUMP_USERS, dumpalluser),
+    vscode.commands.registerCommand(Commands.SWITCH_HOST, switchActiveHost),
+    vscode.commands.registerCommand(Commands.SWITCH_USER, switchActiveUser),
     vscode.commands.registerCommand(
-      "weapon.display_virtual_content",
+      Commands.DISPLAY_VIRTUAL,
       displayVirtualContent
     ),
     vscode.commands.registerCommand(
-      "weapon.magic_decoder",
+      Commands.MAGIC_DECODER,
       cyberChefMagicDecoder
     ),
-    vscode.commands.registerCommand("weapon.run_command", runCommand),
-    vscode.commands.registerCommand("weapon.copy", copyCommand),
-    vscode.commands.registerCommand("weapon.replace_document", replacer),
+    vscode.commands.registerCommand(Commands.RUN_COMMAND, runCommand),
+    vscode.commands.registerCommand(Commands.COPY, copyCommand),
+    vscode.commands.registerCommand(Commands.REPLACE_DOCUMENT, replacer),
     vscode.commands.registerCommand(
-      "weapon.task.msfvenom_creation",
+      Commands.TASK_MSFVENOM,
       msfvenomPayloadCreation
     ),
     vscode.commands.registerCommand(
-      "weapon.task.hashcat_cracker",
+      Commands.TASK_HASHCAT,
       hashcatCracker
     ),
-    vscode.commands.registerCommand("weapon.task.scan", scanCommand),
-    vscode.commands.registerCommand("weapon.setup", setupCommand),
+    vscode.commands.registerCommand(Commands.TASK_SCAN, scanCommand),
+    vscode.commands.registerCommand(Commands.SETUP, setupCommand),
     vscode.workspace.registerTextDocumentContentProvider(
       "weaponized-editor",
       new ReadOnlyProvider()
     ),
-    vscode.commands.registerCommand("weapon.http_raw_request", rawHTTPRequest),
+    vscode.commands.registerCommand(Commands.HTTP_RAW_REQUEST, rawHTTPRequest),
     vscode.commands.registerCommand(
-      "weapon.http_raw_request_to_curl",
+      Commands.HTTP_TO_CURL,
       rawHTTPRequestToCurl
     ),
-    vscode.commands.registerCommand("weapon.note.creation", CreateNoteFile),
-    vscode.commands.registerCommand("weapon.mcp.install", installMcpServer)
+    vscode.commands.registerCommand(Commands.NOTE_CREATION, CreateNoteFile),
+    vscode.commands.registerCommand(Commands.MCP_INSTALL, installMcpServer)
   );
 }

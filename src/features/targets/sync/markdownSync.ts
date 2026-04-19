@@ -12,7 +12,7 @@ import { Context } from "../../../platform/vscode/context";
 import { getDefaultCollects } from "../../../platform/vscode/defaultCollects";
 import { extractYamlBlocksByIdentity } from "../../../core/markdown";
 
-export function getCodeblock(content: string, identity: string): string[] {
+function getCodeblock(content: string, identity: string): string[] {
   return extractYamlBlocksByIdentity(content, identity).map((b) => b.content);
 }
 

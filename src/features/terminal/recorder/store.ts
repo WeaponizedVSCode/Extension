@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-export type EventListener = (
+type EventListener = (
   event: vscode.TerminalShellExecutionStartEvent
 ) => Promise<void>;
 

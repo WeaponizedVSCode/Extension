@@ -330,7 +330,6 @@
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@types/http-string-parser": "^0.0.33",
-    "@types/lodash": "^4.17.23",
     "@types/mocha": "^10.0.10",
     "@types/node": "~20.19.1",
     "@types/node-fetch": "^2.6.13",
@@ -355,7 +354,6 @@
     "http-string-parser": "^0.0.6",
     "node-fetch": "^2.7.0",
     "table": "^6.9.0",
-    "vscode-variables": "^1.0.1",
     "yaml": "^2.8.0"
   }
 }

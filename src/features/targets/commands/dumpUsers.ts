@@ -6,6 +6,7 @@ import {
 
 import { Context } from "../../../platform/vscode/context";
 import { callback } from "../../../shared/types";
+import { Commands } from "../../../shared/commands";
 
 let formats = ["env", "impacket", "nxc", "yaml", "table"];
 
@@ -24,7 +25,7 @@ export const dumpalluser: callback = async () => {
   }
 
   let content = dumpUserCredentials(users, format as UserDumpFormat).trim();
-  await vscode.commands.executeCommand("weapon.display_virtual_content", {
+  await vscode.commands.executeCommand(Commands.DISPLAY_VIRTUAL, {
     title: "All User Credentials",
     content: content,
   });

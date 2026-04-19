@@ -4,7 +4,9 @@ import { logger } from "../../../platform/vscode/logger";
 import { callback } from "../../../shared/types";
 
 export const runCommand: callback = async (args) => {
-  var term = vscode.window.activeTerminal || vscode.window.createTerminal();
+  const command = args?.command as string | undefined;
+  if (!command) return;
+  const term = vscode.window.activeTerminal || vscode.window.createTerminal();
   if (vscode.window.activeTerminal) {
     logger.debug("Using existing terminal: " + vscode.window.activeTerminal.name);
   }
@@ -15,7 +17,7 @@ export const runCommand: callback = async (args) => {
       if (error) {
         // if we can't check just send to the current one...
         term.show();
-        term.sendText(args.command);
+        term.sendText(command);
         return;
       }
 
@@ -25,7 +27,7 @@ export const runCommand: callback = async (args) => {
       //  term = vscode.window.createTerminal();
       // }
       term.show();
-      term.sendText(args.command);
+      term.sendText(command);
     });
   });
 };

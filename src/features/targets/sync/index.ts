@@ -35,29 +35,34 @@ async function init(context: vscode.ExtensionContext) {
 }
 
 function filewatcher(context: vscode.ExtensionContext): vscode.FileSystemWatcher {
-  let filewatcher = vscode.workspace.createFileSystemWatcher(targetFilePattern);
+  const watcher = vscode.workspace.createFileSystemWatcher(targetFilePattern);
   context.subscriptions.push(
-    filewatcher.onDidChange(async (file) => {
+    watcher,
+    watcher.onDidChange(async (file) => {
       logger.info(`Watched file changed: ${file.fsPath}`);
       await ProcessMarkdownFileToWorkspaceState(file);
-      let wksp = vscode.workspace.getWorkspaceFolder(file);
+      const wksp = vscode.workspace.getWorkspaceFolder(file);
       if (wksp) {
         await ProcessWorkspaceStateToEnvironmentCollects(wksp);
       }
     }),
-    filewatcher.onDidDelete(async (file) => {
+    watcher.onDidCreate(async (file) => {
+      logger.info(`Watched file created: ${file.fsPath}`);
+      await ProcessMarkdownFileToWorkspaceState(file);
+      const wksp = vscode.workspace.getWorkspaceFolder(file);
+      if (wksp) {
+        await ProcessWorkspaceStateToEnvironmentCollects(wksp);
+      }
+    }),
+    watcher.onDidDelete(async (file) => {
       logger.info(`Watched file deleted: ${file.fsPath}`);
-      let wksp = vscode.workspace.getWorkspaceFolder(file);
       await init(context);
     })
   );
-  return filewatcher;
+  return watcher;
 }
 
 export async function registerTargetsSync(context: vscode.ExtensionContext) {
   await init(context);
   filewatcher(context);
 }
-
-// Back-compat name (to be removed after migration finishes)
-export const registerVariablesWatcher = registerTargetsSync;

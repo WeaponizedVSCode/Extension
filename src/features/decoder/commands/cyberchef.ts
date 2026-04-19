@@ -13,7 +13,7 @@ function constructCyberChefURL(input: string): string {
 }
 
 export const cyberChefMagicDecoder: callback = async (args) => {
-  let selectedText: string | undefined = args?.selectedText;
+  let selectedText: string | undefined = args?.selectedText as string | undefined;
   if (!selectedText) {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {

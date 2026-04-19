@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { dumpHosts, HostDumpFormat } from "../../../core";
 import { callback } from "../../../shared/types";
 import { Context } from "../../../platform/vscode/context";
+import { Commands } from "../../../shared/commands";
 
 let formats = ["env", "hosts", "yaml", "table"];
 
@@ -17,7 +18,7 @@ export const dumpetchosts: callback = async () => {
     vscode.window.showErrorMessage("No format selected, aborting.");
     return;
   }
-  await vscode.commands.executeCommand("weapon.display_virtual_content", {
+  await vscode.commands.executeCommand(Commands.DISPLAY_VIRTUAL, {
     title: "/etc/hosts",
     content: dumpHosts(hosts, format as HostDumpFormat).trim(),
     copyToClipboard: true,

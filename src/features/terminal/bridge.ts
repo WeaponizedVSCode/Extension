@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { logger } from "../../platform/vscode/logger";
 
-export interface TerminalInfo {
+interface TerminalInfo {
   id: string;
   name: string;
   isActive: boolean;
@@ -202,9 +202,10 @@ export class TerminalBridge {
         // file doesn't exist yet
       }
       let content = existing + text;
-      // Truncate if too large (keep tail)
-      if (encoder.encode(content).byteLength > MAX_OUTPUT_BYTES) {
-        content = content.slice(-MAX_OUTPUT_BYTES);
+      // Truncate if too large (keep tail, truncate by bytes not characters)
+      const encoded = encoder.encode(content);
+      if (encoded.byteLength > MAX_OUTPUT_BYTES) {
+        content = decoder.decode(encoded.slice(-MAX_OUTPUT_BYTES));
       }
       await vscode.workspace.fs.writeFile(logUri, encoder.encode(content));
     } catch {
@@ -223,16 +224,13 @@ export class TerminalBridge {
     return undefined;
   }
 
-  dispose(): void {
+  async dispose(): Promise<void> {
     if (this.flushTimer) {
       clearInterval(this.flushTimer);
+      this.flushTimer = undefined;
     }
-    // Final flush
-    for (const [id, pending] of this.outputBuffers) {
-      if (pending) {
-        this.appendOutput(id, pending);
-      }
-    }
+    // Final flush — await to prevent data loss
+    await this.flushAllBuffers();
     for (const d of this.disposables) {
       d.dispose();
     }

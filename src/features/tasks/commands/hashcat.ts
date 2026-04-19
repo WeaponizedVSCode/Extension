@@ -16,16 +16,16 @@ export let hashcatCracker: callback = async (args) => {
     .getConfiguration("weaponized")
     .get("hashcat", "hashcat");
 
-  let file: string | undefined = args?.file;
+  let file: string | undefined = args?.file as string | undefined;
   if (!args || !args.file) {
-    file = await filepicker();
+    file = await filepicker() as string | undefined;
   }
   if (!file) {
     logger.error("No file provided for hashcat cracker.");
     return;
   }
 
-  let hashmode = args?.hashmode;
+  let hashmode = args?.hashmode as string | undefined;
   if (!hashmode) {
     hashmode = await vscode.window.showQuickPick(
       Object.keys(hash_mode_collects),
@@ -34,9 +34,9 @@ export let hashcatCracker: callback = async (args) => {
       }
     );
   }
-  hashmode = hash_mode_collects[hashmode];
+  hashmode = hash_mode_collects[hashmode!];
 
-  let hashtype: string | undefined = args?.hashtype;
+  let hashtype: string | undefined = args?.hashtype as string | undefined;
   if (!hashtype) {
     hashtype = await vscode.window.showQuickPick(
       Object.keys(hash_type_collects),
@@ -47,7 +47,7 @@ export let hashcatCracker: callback = async (args) => {
   }
   hashtype = hash_type_collects[hashtype!];
 
-  let hashdevice = args?.hashdevice;
+  let hashdevice = args?.hashdevice as string | undefined;
   if (!hashdevice) {
     hashdevice = await vscode.window.showQuickPick(
       Object.keys(hash_device_collects),
@@ -58,7 +58,7 @@ export let hashcatCracker: callback = async (args) => {
   }
   hashdevice = hash_device_collects[hashdevice!];
 
-  let wordlist_extra: string | undefined = args?.wordlist || args?.extra;
+  let wordlist_extra: string | undefined = (args?.wordlist || args?.extra) as string | undefined;
   if (!args || !args.wordlist || !args.extra) {
     wordlist_extra = await vscode.window.showInputBox({
       placeHolder: "Enter wordlist or extra options",

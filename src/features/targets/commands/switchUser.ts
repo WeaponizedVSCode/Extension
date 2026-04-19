@@ -11,7 +11,7 @@ import {
 } from "../../../core";
 
 export const switchActiveUser: callback = async (args) => {
-  let user: UserCredential | undefined = args?.user;
+  let user: UserCredential | undefined = args?.user as UserCredential | undefined;
   if (!user) {
     let userList = Context.UserState;
     if (!userList || userList.length === 0) {
@@ -20,7 +20,7 @@ export const switchActiveUser: callback = async (args) => {
     }
 
     let userOptions = userList.map((u) => `${u.user} @ ${u.login}`); // let user head of the login
-    var userString = await vscode.window.showQuickPick(userOptions, {
+    const userString = await vscode.window.showQuickPick(userOptions, {
       placeHolder: "Select a user to switch",
     });
     if (!userString) {

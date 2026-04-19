@@ -62,7 +62,9 @@ After setup, VS Code will suggest installing recommended extensions. The most im
 
 ### From Marketplace
 
-Search for **Weaponized** in the VS Code Extensions sidebar and install `Esonhugh.weaponized`.
+Search for **Weaponized** in the VS Code Extensions sidebar and install `WeaponizedVSCode.core`.
+
+You can also install from [OpenVSX](https://open-vsx.org/extension/WeaponizedVSCode/core).
 
 ## Setting Up Your First Workspace
 

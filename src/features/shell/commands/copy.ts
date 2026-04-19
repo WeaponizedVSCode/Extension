@@ -6,7 +6,7 @@ export const copyCommand: callback = async (args) => {
         vscode.window.showErrorMessage('No command provided to copy.');
         return;
     }
-    const command = args.command;
+    const command = args.command as string;
     await vscode.env.clipboard.writeText(command);
     vscode.window.showInformationMessage('Command copied to clipboard: ' + command);
 };

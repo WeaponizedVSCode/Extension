@@ -11,6 +11,7 @@ import {
 import { logger } from "../../../../platform/vscode/logger";
 import { parse as yamlParse } from "yaml";
 import { MarkdownCodeLensGenerator } from "./base";
+import { Commands } from "../../../../shared/commands";
 
 export const GenerateEnvExportCodeLens: MarkdownCodeLensGenerator = (
   configtype,
@@ -57,7 +58,7 @@ export const GenerateEnvExportCodeLens: MarkdownCodeLensGenerator = (
 
     const cmd: vscode.Command = {
       title: title,
-      command: "weapon.run_command",
+      command: Commands.RUN_COMMAND,
       arguments: [{ command: `${configs}` }],
     };
     
@@ -91,10 +92,10 @@ export const GenerateDumpUserCredCodeLens: MarkdownCodeLensGenerator = (
     return codeLenses;
   }
   for (let fmt of ["impacket", "nxc"]) {
-    var format = fmt as UserDumpFormat;
+    const format = fmt as UserDumpFormat;
     const cmd: vscode.Command = {
       title: `dump as ${format}`,
-      command: "weapon.display_virtual_content",
+      command: Commands.DISPLAY_VIRTUAL,
       arguments: [
         {
           content: dumpUserCredentials(Users, format).trim(),
@@ -125,7 +126,7 @@ export const GenerateSetAsCurrentCodeLens: MarkdownCodeLensGenerator = (
     let title = active ? "set as current" : "unset as current";
     const cmd: vscode.Command = {
       title: title,
-      command: "weapon.replace_document",
+      command: Commands.REPLACE_DOCUMENT,
       arguments: [
         {
           file: vscode.window.activeTextEditor?.document.uri,

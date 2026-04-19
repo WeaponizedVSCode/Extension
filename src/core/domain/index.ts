@@ -30,7 +30,6 @@ export {
 
 export {
     Finding,
-    FindingFilter,
     parseFindingNote,
     generateFindingMarkdown,
     filterFindings

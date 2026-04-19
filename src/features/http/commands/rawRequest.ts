@@ -7,12 +7,12 @@ import { Agent as httpsAgent } from "https";
 import { Agent as HttpAgent } from "http";
 
 export const rawHTTPRequest: callback = async (args) => {
-  let request: string | undefined = args.request ? args.request : undefined;
+  let request: string | undefined = args?.request ? (args.request as string) : undefined;
   if (!request) {
     vscode.window.showErrorMessage("No request provided");
     return;
   }
-  let isHTTPS = args.isHTTPS ? args.isHTTPS : false;
+  let isHTTPS = args?.isHTTPS ? (args.isHTTPS as boolean) : false;
 
   let res: ParseRequestResult;
   try {
@@ -22,14 +22,15 @@ export const rawHTTPRequest: callback = async (args) => {
       vscode.window.showErrorMessage("Invalid request format");
       return;
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e);
     logger.error("raise Error parsing request", e);
-    vscode.window.showErrorMessage(`Error parsing request: ${e.message}`);
+    vscode.window.showErrorMessage(`Error parsing request: ${message}`);
     return;
   }
   try {
     const { method, uri, headers, body } = res;
-    var url = headers["Host"]
+    const url = headers["Host"]
       ? `${isHTTPS ? "https" : "http"}://${headers["Host"]}${uri}`
       : uri;
     logger.debug(
@@ -72,9 +73,10 @@ export const rawHTTPRequest: callback = async (args) => {
         viewColumn: vscode.ViewColumn.Beside,
       }
     );
-  } catch (e: any) {
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e);
     logger.error("raise Error fetching request", e);
-    vscode.window.showErrorMessage(`Error fetching request: ${e.message}`);
+    vscode.window.showErrorMessage(`Error fetching request: ${message}`);
     return;
   }
 };

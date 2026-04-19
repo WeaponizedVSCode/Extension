@@ -161,7 +161,7 @@ export function dumpHosts(hosts: Host[], format: HostDumpFormat): string {
     return t;
   }
   for (const h of hosts) {
-    var host = new Host().init(h);
+    const host = new Host().init(h);
     ret += `${host.dump(format)}\n`;
   }
   return ret;

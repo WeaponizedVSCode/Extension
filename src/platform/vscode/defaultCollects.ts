@@ -42,7 +42,7 @@ export const hash_type_collects: Collects = {
   HASH_KRB5_AS_REP_18: "19700",
 };
 
-export const hash_collects: Collects = mergeCollects(
+const hash_collects: Collects = mergeCollects(
   hash_mode_collects,
   hash_device_collects,
   hash_type_collects

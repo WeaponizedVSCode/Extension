@@ -67,7 +67,7 @@ export let msfvenomPayloadCreation: callback = async (args) => {
     return;
   }
 
-  let payload: string | undefined = args?.payload;
+  let payload: string | undefined = args?.payload as string | undefined;
   if (!args || !args.payload) {
     payload = await vscode.window.showQuickPick(msfpaylaodtypes, {
       placeHolder: "Select a payload type",
@@ -91,19 +91,19 @@ export let msfvenomPayloadCreation: callback = async (args) => {
   }
 
   // Continue with payload creation...
-  let format: string | undefined = args?.format;
+  let format: string | undefined = args?.format as string | undefined;
   if (!args || !args.format) {
     format = await vscode.window.showQuickPick(formats, {
       placeHolder: "Select a format",
     });
   } else {
-    if (typeof args.format !== "string" || !formats.includes(args.format)) {
+    if (typeof args.format !== "string" || !formats.includes(args.format as string)) {
       vscode.window.showErrorMessage(
         "Invalid format got. Operation cancelled."
       );
       return;
     }
-    format = args.format;
+    format = args.format as string;
   }
   if (!format) {
     vscode.window.showErrorMessage("No format selected. Operation cancelled.");
@@ -111,7 +111,7 @@ export let msfvenomPayloadCreation: callback = async (args) => {
   }
   logger.debug("output format: " + format);
 
-  let advancedOptions: string[] | undefined = args?.advanced;
+  let advancedOptions: string[] | undefined = args?.advanced as string[] | undefined;
   if (!args || !args.advanced) {
     advancedOptions = await vscode.window.showQuickPick(advanced, {
       placeHolder: "Select advanced options",
@@ -119,9 +119,9 @@ export let msfvenomPayloadCreation: callback = async (args) => {
     });
   } else {
     if (typeof args.advanced === "string") {
-      advancedOptions = [args.advanced];
+      advancedOptions = [args.advanced as string];
     } else if (Array.isArray(args.advanced)) {
-      advancedOptions = args.advanced;
+      advancedOptions = args.advanced as string[];
     } else {
       vscode.window.showErrorMessage(
         "Invalid advanced options format. Operation cancelled."
@@ -136,7 +136,7 @@ export let msfvenomPayloadCreation: callback = async (args) => {
     return;
   }
 
-  let output: string | undefined = args?.output;
+  let output: string | undefined = args?.output as string | undefined;
   if (!args || !args.output) {
     output = await vscode.window.showInputBox({
       prompt: "Enter output file name (without extension)",
@@ -150,7 +150,7 @@ export let msfvenomPayloadCreation: callback = async (args) => {
       );
       return;
     }
-    output = args.output;
+    output = args.output as string;
   }
   if (!output) {
     vscode.window.showErrorMessage(
@@ -170,7 +170,7 @@ export let msfvenomPayloadCreation: callback = async (args) => {
       runHandler = true;
     }
   } else {
-    runHandler = args.startListen;
+    runHandler = args.startListen as boolean;
   }
 
   let argsArray: string[] = [

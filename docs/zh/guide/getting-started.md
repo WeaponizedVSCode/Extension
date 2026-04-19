@@ -62,7 +62,9 @@ Weaponized VSCode 将一切统一到单一工作区中：
 
 ### 从 Marketplace 安装
 
-在 VS Code 扩展侧边栏中搜索 **Weaponized** 并安装 `Esonhugh.weaponized`。
+在 VS Code 扩展侧边栏中搜索 **Weaponized** 并安装 `WeaponizedVSCode.core`。
+
+你也可以从 [OpenVSX](https://open-vsx.org/extension/WeaponizedVSCode/core) 安装。
 
 ## 设置你的第一个工作区
 

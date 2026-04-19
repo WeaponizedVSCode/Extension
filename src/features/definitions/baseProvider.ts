@@ -5,7 +5,7 @@ export interface BigDefinition {
   extra?: string[];
 }
 
-export type definitionSearcher = (params: {
+type definitionSearcher = (params: {
   document: vscode.TextDocument;
   position: vscode.Position;
 }) => BigDefinition | undefined;

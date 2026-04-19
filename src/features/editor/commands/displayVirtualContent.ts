@@ -12,14 +12,13 @@ export const ReadOnlyProvider = class
 export const displayVirtualContent: callback = async (args) => {
   let content = "Empty Content!";
   if (args && args.content) {
-    content = args.content;
+    content = args.content as string;
   }
   let title = "Virtual Document";
   if (args && args.title) {
-    title = encodeURIComponent(args.title);
+    title = encodeURIComponent(args.title as string);
   }
   let uri = vscode.Uri.parse("weaponized-editor:" + title + "?" + encodeURIComponent(content));
-  // let uri = vscode.Uri.parse("weaponized-editor:" + content);
   let doc = await vscode.workspace.openTextDocument(uri);
   await vscode.window.showTextDocument(doc, { preview: false });
   if (args && args.copyToClipboard) {

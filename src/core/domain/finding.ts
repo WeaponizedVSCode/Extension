@@ -108,7 +108,7 @@ export function generateFindingMarkdown(opts: {
   return md;
 }
 
-export interface FindingFilter {
+interface FindingFilter {
   severity?: string;
   tags?: string[];
   query?: string;

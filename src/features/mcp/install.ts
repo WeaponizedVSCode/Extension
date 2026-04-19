@@ -103,14 +103,3 @@ export function getEmbeddedMcpServer(): EmbeddedMcpServer | undefined {
   return _embeddedServer;
 }
 
-// Legacy context ref kept for the install command (may be removed later)
-let _context: vscode.ExtensionContext | undefined;
-
-export function setExtensionContext(ctx: vscode.ExtensionContext): void {
-  _context = ctx;
-}
-
-export function getExtensionContext(): vscode.ExtensionContext | undefined {
-  return _context;
-}
-

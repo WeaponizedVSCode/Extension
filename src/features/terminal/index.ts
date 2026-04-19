@@ -12,17 +12,18 @@ import {
 import { TerminalBridge } from "./bridge";
 import * as vscode from "vscode";
 import { logger } from "../../platform/vscode/logger";
+import { Commands } from "../../shared/commands";
 
 export function registerTerminalUtils(context: vscode.ExtensionContext) {
-  activate();
+  activate(context);
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      "weaponized.terminal-logger.register",
+      Commands.TERMINAL_LOGGER_REGISTER,
       startTempTerminalRecord
     ),
     vscode.commands.registerCommand(
-      "weaponized.terminal-logger.unregister",
+      Commands.TERMINAL_LOGGER_UNREGISTER,
       stopTempTerminalForCapture
     ),
 
@@ -41,7 +42,13 @@ export function registerTerminalUtils(context: vscode.ExtensionContext) {
     vscode.window.registerTerminalProfileProvider(
       "weaponized.web-delivery",
       WebDeliveryWeaponizedTerminalProvider
-    )
+    ),
+
+    // Dispose profile providers' internal listeners
+    MsfconsoleWeaponizedTerminalProvider,
+    MeterpreterWeaponizedTerminalProvider,
+    NetcatWeaponizedTerminalProvider,
+    WebDeliveryWeaponizedTerminalProvider,
   );
 }
 

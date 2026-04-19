@@ -152,11 +152,22 @@
 
 ### 实战 4：AI 辅助攻击
 
-1. **连接 AI** → `Weapon: Install MCP server` → 在工作区中打开 Claude Code
-2. **请求分析** → "读取终端 1 并告诉我 nmap 扫描发现了什么"
-3. **自动创建发现** → "为你识别的每个关键服务创建一个 finding"
-4. **获取建议** → 在 Copilot Chat 中使用 `@weapon /suggest`
-5. **生成命令** → `@weapon /generate kerberoasting attack for the current domain`
+扩展提供两条独立的 AI 集成路径，可以单独或同时使用：
+
+**路径 A：Copilot Chat（`@weapon`）**
+
+1. **获取建议** → 在 Copilot Chat 中使用 `@weapon /suggest` — 根据当前目标和凭据推荐下一步操作
+2. **生成命令** → `@weapon /generate kerberoasting attack for the current domain`
+3. **分析输出** → 选中终端输出，然后 `@weapon /analyze`
+
+**路径 B：MCP Server（外部 AI 客户端）**
+
+1. **安装 MCP 配置** → `Weapon: Install MCP server` → 写入 `.vscode/mcp.json`
+2. **打开 MCP 客户端** → 如 Claude Code、Cursor 或任何兼容 MCP 的工具
+3. **请求分析** → "读取终端 1 并告诉我 nmap 扫描发现了什么"
+4. **自动创建发现** → "为你识别的每个关键服务创建一个 finding"
+
+> 完整配置详见 [AI 与 MCP 集成](./ai-and-mcp.md)。
 
 ### 实战 5：报告生成
 

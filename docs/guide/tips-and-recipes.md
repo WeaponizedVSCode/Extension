@@ -152,11 +152,22 @@ Default user variables include common Kali paths:
 
 ### Recipe 4: AI-Assisted Engagement
 
-1. **Connect AI** → `Weapon: Install MCP server` → open Claude Code in the workspace
-2. **Ask for analysis** → "Read terminal 1 and tell me what the nmap scan found"
-3. **Auto-create findings** → "Create a finding for each critical service you identified"
-4. **Get suggestions** → `@weapon /suggest` in Copilot Chat
-5. **Generate commands** → `@weapon /generate kerberoasting attack for the current domain`
+The extension provides two independent AI integration paths — use either or both:
+
+**Path A: Copilot Chat (`@weapon`)**
+
+1. **Get suggestions** → `@weapon /suggest` in Copilot Chat — recommends next steps based on current targets and credentials
+2. **Generate commands** → `@weapon /generate kerberoasting attack for the current domain`
+3. **Analyze output** → select terminal output, then `@weapon /analyze`
+
+**Path B: MCP Server (external AI clients)**
+
+1. **Install MCP config** → `Weapon: Install MCP server` → writes `.vscode/mcp.json`
+2. **Open your MCP client** → e.g. Claude Code, Cursor, or any MCP-compatible tool
+3. **Ask for analysis** → "Read terminal 1 and tell me what the nmap scan found"
+4. **Auto-create findings** → "Create a finding for each critical service you identified"
+
+> See [AI & MCP Integration](./ai-and-mcp.md) for full setup details.
 
 ### Recipe 5: Report Generation
 

@@ -32,6 +32,7 @@ export default defineConfig({
           { text: 'Guide', link: '/guide/getting-started' },
           { text: 'Features', link: '/features/workspace-setup' },
           { text: 'Architecture', link: '/architecture/architecture-overview' },
+          { text: 'AI Skills', link: '/ai-skills' },
         ],
         sidebar: {
           '/guide/': [
@@ -101,6 +102,7 @@ export default defineConfig({
           { text: '指南', link: '/zh/guide/getting-started' },
           { text: '功能', link: '/zh/features/workspace-setup' },
           { text: '架构', link: '/zh/architecture/architecture-overview' },
+          { text: 'AI 技能', link: '/zh/ai-skills' },
         ],
         sidebar: {
           '/zh/guide/': [

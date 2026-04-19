@@ -29,10 +29,25 @@ export default defineConfig({
       lang: 'en',
       themeConfig: {
         nav: [
+          { text: 'Guide', link: '/guide/getting-started' },
           { text: 'Features', link: '/features/workspace-setup' },
           { text: 'Architecture', link: '/architecture/architecture-overview' },
         ],
         sidebar: {
+          '/guide/': [
+            {
+              text: 'Usage Guide',
+              items: [
+                { text: 'Getting Started', link: '/guide/getting-started' },
+                { text: 'Host & Credential Management', link: '/guide/host-management' },
+                { text: 'Offensive Workflows', link: '/guide/offensive-workflows' },
+                { text: 'Notes & Reports', link: '/guide/notes-and-reports' },
+                { text: 'Terminal Tools', link: '/guide/terminal-tools' },
+                { text: 'AI & MCP Integration', link: '/guide/ai-and-mcp' },
+                { text: 'Tips & Recipes', link: '/guide/tips-and-recipes' },
+              ],
+            },
+          ],
           '/features/': [
             {
               text: 'Features',
@@ -83,10 +98,25 @@ export default defineConfig({
       link: '/zh/',
       themeConfig: {
         nav: [
+          { text: '指南', link: '/zh/guide/getting-started' },
           { text: '功能', link: '/zh/features/workspace-setup' },
           { text: '架构', link: '/zh/architecture/architecture-overview' },
         ],
         sidebar: {
+          '/zh/guide/': [
+            {
+              text: '使用指南',
+              items: [
+                { text: '快速开始', link: '/zh/guide/getting-started' },
+                { text: '主机与凭证管理', link: '/zh/guide/host-management' },
+                { text: '攻击工作流', link: '/zh/guide/offensive-workflows' },
+                { text: '笔记与报告', link: '/zh/guide/notes-and-reports' },
+                { text: '终端工具', link: '/zh/guide/terminal-tools' },
+                { text: 'AI 与 MCP 集成', link: '/zh/guide/ai-and-mcp' },
+                { text: '技巧与实战', link: '/zh/guide/tips-and-recipes' },
+              ],
+            },
+          ],
           '/zh/architecture/': [
             {
               text: '架构',

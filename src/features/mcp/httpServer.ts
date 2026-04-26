@@ -14,6 +14,7 @@ import type { UserDumpFormat } from "../../core/domain/user";
 import { buildRelationshipGraph } from "../targets/sync/graphBuilder";
 import type { Finding } from "../../core/domain/finding";
 import { parseFindingNote, generateFindingMarkdown, filterFindings } from "../../core/domain/finding";
+import { buildEngagementSummary } from "../../core/domain/engagement";
 import { findAvailablePort } from "./portManager";
 
 function updateFrontmatter(content: string, updates: Record<string, string | undefined>): string {
@@ -173,6 +174,21 @@ export class EmbeddedMcpServer {
           uri: "findings://list",
           mimeType: "application/json",
           text: JSON.stringify(findings, null, 2),
+        }],
+      };
+    });
+
+    server.resource("engagement-summary", "engagement://summary", async () => {
+      const hosts = Context.HostState ?? [];
+      const users = Context.UserState ?? [];
+      const findings = await this.getFindings();
+      const graph = await this.buildGraph();
+      const summary = buildEngagementSummary({ hosts, users, findings, graph });
+      return {
+        contents: [{
+          uri: "engagement://summary",
+          mimeType: "application/json",
+          text: JSON.stringify(summary, null, 2),
         }],
       };
     });
@@ -355,6 +371,22 @@ export class EmbeddedMcpServer {
         };
       }
     );
+
+    server.tool(
+      "get_engagement_summary",
+      "Get a comprehensive summary of the current penetration testing engagement in one call. Returns: all hosts, credentials, findings with their wiki-link associations (which hosts/users/findings each finding connects to), per-host and per-user finding breakdowns, orphan findings, relationship graph with attack path, and computed statistics. Use this as your first call to understand the full engagement state.",
+      {},
+      async () => {
+        const hosts = Context.HostState ?? [];
+        const users = Context.UserState ?? [];
+        const findings = await this.getFindings();
+        const graph = await this.buildGraph();
+        const summary = buildEngagementSummary({ hosts, users, findings, graph });
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }],
+        };
+      }
+    );
   }
 
   private registerPrompts(server: McpServer): void {
@@ -392,6 +424,35 @@ export class EmbeddedMcpServer {
           },
         }],
       })
+    );
+
+    server.prompt(
+      "analyze-engagement",
+      "Analyze the full engagement — findings, associations, attack chains — and identify gaps",
+      async () => {
+        const hosts = Context.HostState ?? [];
+        const users = Context.UserState ?? [];
+        const findings = await this.getFindings();
+        const graph = await this.buildGraph();
+        const summary = buildEngagementSummary({ hosts, users, findings, graph });
+        return {
+          messages: [{
+            role: "user" as const,
+            content: {
+              type: "text" as const,
+              text:
+                `You are a penetration testing assistant. Analyze the current engagement and provide strategic guidance.\n\n` +
+                `Engagement Summary:\n${JSON.stringify(summary, null, 2)}\n\n` +
+                `Provide:\n` +
+                `1) Overall assessment — what phase is the engagement in (recon/scanning/exploitation/post-exploitation)?\n` +
+                `2) Key findings and their combined impact — look at findingAssociations to see what chains together\n` +
+                `3) Attack chains — which findings link to other findings? What is the full exploitation path?\n` +
+                `4) Coverage gaps — which hosts have no findings? Which users have no associated findings?\n` +
+                `5) Recommended next 3-5 actions with exact commands`,
+            },
+          }],
+        };
+      }
     );
   }
 

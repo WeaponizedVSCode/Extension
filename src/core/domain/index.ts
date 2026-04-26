@@ -35,6 +35,14 @@ export {
     filterFindings
 } from "./finding";
 
+export {
+    EngagementSummary,
+    EngagementSummaryInput,
+    EngagementStats,
+    FindingAssociation,
+    buildEngagementSummary
+} from "./engagement";
+
 import { UserCredential } from "./user";
 import { Host } from "./host";
 

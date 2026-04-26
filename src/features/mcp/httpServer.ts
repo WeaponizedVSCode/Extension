@@ -340,7 +340,7 @@ export class EmbeddedMcpServer {
       "create_terminal",
       "Create a new VS Code terminal. Use 'profile' to launch a pre-configured handler (netcat, msfconsole, meterpreter, web-delivery) or omit it for a plain shell.",
       {
-        profile: z.enum(["netcat handler", "msfconsole", "meterpreter handler", "web delivery", "shell"]).optional().describe(
+        profile: z.enum(["netcat", "msfconsole", "meterpreter", "web-delivery", "shell"]).optional().describe(
           "Terminal profile to use. Available profiles: netcat (reverse shell listener), msfconsole (Metasploit console), meterpreter (Meterpreter handler), web-delivery (HTTP file server), shell (plain terminal)"
         ),
         name: z.string().optional().describe("Custom terminal name (only used when profile is 'shell' or omitted)"),

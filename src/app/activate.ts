@@ -9,7 +9,7 @@ import { registerDefinitionProvider } from "../features/definitions";
 import { registerAIFeatures } from "../features/ai";
 import {
   setEmbeddedMcpServer,
-  autoUpdateMcpJson,
+  autoUpdateMcpConfig,
 } from "../features/mcp/install";
 import { EmbeddedMcpServer } from "../features/mcp/httpServer";
 import { DEFAULT_MCP_PORT } from "../features/mcp/portManager";
@@ -97,7 +97,7 @@ export async function activateExtension(context: vscode.ExtensionContext) {
         const port = await mcpServer.start(terminalBridge, preferredPort);
         setEmbeddedMcpServer(mcpServer);
         context.subscriptions.push({ dispose: () => mcpServer.stop() });
-        await autoUpdateMcpJson(port);
+        await autoUpdateMcpConfig(port);
         logger.info(`Embedded MCP server started on port ${port}`);
       } catch (e) {
         logger.error("Failed to start embedded MCP server:", e);

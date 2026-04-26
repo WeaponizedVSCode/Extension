@@ -12,8 +12,9 @@ export interface GraphEdge {
 export interface RelationshipGraph {
   nodes: GraphNode[];
   edges: GraphEdge[];       // all connections
-  hostEdges: GraphEdge[];   // both endpoints involve type "host"
+  hostEdges: GraphEdge[];   // at least one endpoint is type "host"
   userEdges: GraphEdge[];   // at least one endpoint is type "user"
+  findingEdges: GraphEdge[]; // at least one endpoint is type "finding"
   attackPath: string[];     // ordered node IDs — privilege escalation chain
   mermaid: string;          // pre-rendered Mermaid diagram
 }

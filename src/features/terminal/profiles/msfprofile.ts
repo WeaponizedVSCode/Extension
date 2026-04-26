@@ -18,8 +18,8 @@ export const MsfconsoleWeaponizedTerminalProvider = new BaseWeaponizedTerminalPr
     let args: string[] = [];
     args.push("-x");
     args.push(
-      `'setg LHOST=${variables(vscode.workspace.getConfiguration("weaponized").get("lhost", "$LHOST"))};` + 
-      `setg LPORT=${variables(vscode.workspace.getConfiguration("weaponized").get("lport", "$LPORT"))};'`);
+      `'setg LHOST=${variables(String(vscode.workspace.getConfiguration("weaponized").get("lhost", "$LHOST")))};` +
+      `setg LPORT=${String(vscode.workspace.getConfiguration("weaponized").get("lport", "$LPORT"))};'`);
     logger.debug(`Starting msfconsole session with args: ${JSON.stringify(args)}`);
     return [
       msfconsolePath,
@@ -49,8 +49,8 @@ export const MeterpreterWeaponizedTerminalProvider = new BaseWeaponizedTerminalP
     }
     args.push("-x");
     args.push(
-      `'setg LHOST=${variables(vscode.workspace.getConfiguration("weaponized").get("lhost", "$LHOST"))};` + 
-      `setg LPORT=${variables(vscode.workspace.getConfiguration("weaponized").get("lport", "$LPORT"))};'`);
+      `'setg LHOST=${variables(String(vscode.workspace.getConfiguration("weaponized").get("lhost", "$LHOST")))};` +
+      `setg LPORT=${String(vscode.workspace.getConfiguration("weaponized").get("lport", "$LPORT"))};'`);
     logger.debug(`Starting Meterpreter session with args: ${JSON.stringify(args)}`);
     return [
       msfconsolePath,

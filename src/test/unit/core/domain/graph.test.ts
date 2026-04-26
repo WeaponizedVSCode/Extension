@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { longestReferencePath } from "../../../../core/domain/graph";
+import { longestReferencePath, RelationshipGraph } from "../../../../core/domain/graph";
 import type { GraphEdge } from "../../../../core/domain/graph";
 
 suite("longestReferencePath", () => {
@@ -93,5 +93,21 @@ suite("longestReferencePath", () => {
     assert.ok(result.includes("x"));
     assert.ok(result.includes("y"));
     assert.ok(result.includes("z"));
+  });
+});
+
+suite("RelationshipGraph findingEdges", () => {
+  test("findingEdges field exists and is an array", () => {
+    const graph: RelationshipGraph = {
+      nodes: [],
+      edges: [],
+      hostEdges: [],
+      userEdges: [],
+      findingEdges: [],
+      attackPath: [],
+      mermaid: "",
+    };
+    assert.ok(Array.isArray(graph.findingEdges));
+    assert.strictEqual(graph.findingEdges.length, 0);
   });
 });

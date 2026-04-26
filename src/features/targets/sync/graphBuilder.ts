@@ -6,6 +6,7 @@ export function buildRelationshipGraph(foam: Foam): RelationshipGraph {
   const edges: GraphEdge[] = [];
   const hostEdges: GraphEdge[] = [];
   const userEdges: GraphEdge[] = [];
+  const findingEdges: GraphEdge[] = [];
 
   const getId = (uri: URI) => foam.workspace.getIdentifier(uri) || uri.path;
 
@@ -32,6 +33,9 @@ export function buildRelationshipGraph(foam: Foam): RelationshipGraph {
     if (targetNode.type === "host" || sourceNode.type === "host") {
       hostEdges.push(edge);
     }
+    if (targetNode.type === "finding" || sourceNode.type === "finding") {
+      findingEdges.push(edge);
+    }
   });
 
   const attackPath = longestReferencePath(userEdges);
@@ -46,6 +50,7 @@ export function buildRelationshipGraph(foam: Foam): RelationshipGraph {
     edges,
     hostEdges,
     userEdges,
+    findingEdges,
     attackPath,
     mermaid,
   };

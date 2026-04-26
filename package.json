@@ -118,6 +118,13 @@
           "format": "port",
           "description": "Preferred port for the embedded MCP HTTP server (http://127.0.0.1:<port>/mcp). If the port is already in use, the OS will assign a free port automatically and mcp.json will be updated. Requires reload."
         },
+        "weaponized.mcp.cli": {
+          "type": "string",
+          "enum": ["", "vscode", "claude", "codex", "gemini", "opencode"],
+          "default": "",
+          "description": "Target AI CLI tool for MCP config file installation. Controls which config file format is written by the Install MCP command. Leave empty to be prompted on first install.",
+          "scope": "resource"
+        },
         "weaponized.lhost": {
           "type": "string",
           "default": "$LHOST",

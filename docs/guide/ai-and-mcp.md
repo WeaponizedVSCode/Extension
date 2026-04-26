@@ -70,8 +70,18 @@ The extension runs an **MCP (Model Context Protocol) HTTP server** inside the VS
 ### Setup
 
 1. Open the Command Palette and run: `Weapon: Install MCP server to workspace`
-2. This creates `.vscode/mcp.json`:
+2. If `weaponized.mcp.cli` is not set, you'll be prompted to select your AI client:
+   - **VSCode** — writes `.vscode/mcp.json`
+   - **Claude Code** — writes `.mcp.json`
+   - **Codex (OpenAI)** — writes `.codex/config.toml`
+   - **Gemini CLI** — writes `.gemini/settings.json`
+   - **OpenCode** — writes `.opencode.json`
+3. Your choice is saved to workspace settings (`weaponized.mcp.cli`), so subsequent runs skip the picker
+4. The port auto-updates on each activation if the config file exists
 
+### Config Examples Per Client
+
+**VSCode** (`.vscode/mcp.json`):
 ```json
 {
   "servers": {
@@ -82,28 +92,50 @@ The extension runs an **MCP (Model Context Protocol) HTTP server** inside the VS
 }
 ```
 
-3. VS Code's built-in MCP support (and compatible extensions) will auto-discover this configuration
-4. The port auto-updates if it changes between sessions
-
-### Connecting External AI Clients
-
-For AI tools that support MCP (Claude Code, Cursor, Windsurf, etc.):
-
-**Claude Code:**
-```bash
-# Claude Code auto-discovers .vscode/mcp.json
-# Or configure manually in ~/.claude/mcp_settings.json:
+**Claude Code** (`.mcp.json`):
+```json
 {
-  "servers": {
+  "mcpServers": {
     "weaponized": {
+      "type": "url",
       "url": "http://127.0.0.1:25789/mcp"
     }
   }
 }
 ```
 
-**Other MCP clients:**
-Point the client to `http://127.0.0.1:25789/mcp` using Streamable HTTP transport.
+**Codex** (`.codex/config.toml`):
+```toml
+[mcp_servers.weaponized]
+url = "http://127.0.0.1:25789/mcp"
+```
+
+**Gemini CLI** (`.gemini/settings.json`):
+```json
+{
+  "mcpServers": {
+    "weaponized": {
+      "httpUrl": "http://127.0.0.1:25789/mcp"
+    }
+  }
+}
+```
+
+**OpenCode** (`.opencode.json`):
+```json
+{
+  "mcpServers": {
+    "weaponized": {
+      "type": "sse",
+      "url": "http://127.0.0.1:25789/mcp"
+    }
+  }
+}
+```
+
+::: tip
+To switch to a different AI client, change `weaponized.mcp.cli` in your workspace settings and re-run the install command.
+:::
 
 ::: warning
 The MCP server binds to `127.0.0.1` (localhost only). It is not accessible from other machines on the network. The port defaults to `25789` but can be changed via `weaponized.mcp.port` setting.
@@ -199,3 +231,4 @@ The MCP server gives AI clients the same workspace access that CodeLens and comm
 |---------|------|---------|-------------|
 | `weaponized.ai.enabled` | boolean | `true` | Enable/disable both @weapon chat and MCP server |
 | `weaponized.mcp.port` | integer | `25789` | MCP HTTP server port |
+| `weaponized.mcp.cli` | string | `""` | Target AI CLI tool (`vscode`, `claude`, `codex`, `gemini`, `opencode`). Empty = prompt on first install |

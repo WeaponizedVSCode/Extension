@@ -12,9 +12,10 @@ import type { HostDumpFormat } from "../../core/domain/host";
 import { UserCredential, dumpUserCredentials } from "../../core/domain/user";
 import type { UserDumpFormat } from "../../core/domain/user";
 import { buildRelationshipGraph } from "../targets/sync/graphBuilder";
-import type { Finding } from "../../core/domain/finding";
-import { parseFindingNote, generateFindingMarkdown, filterFindings } from "../../core/domain/finding";
+import { generateFindingMarkdown } from "../../core/domain/finding";
+import { buildEngagementSummary } from "../../core/domain/engagement";
 import { findAvailablePort } from "./portManager";
+import { FindingMap } from "./findingMap";
 
 function updateFrontmatter(content: string, updates: Record<string, string | undefined>): string {
   const fmMatch = content.match(/^(---\s*\n)([\s\S]*?)(\n---)/);
@@ -45,9 +46,26 @@ function updateFrontmatter(content: string, updates: Record<string, string | und
   return content.replace(fmMatch[0], `${fmMatch[1]}${fm}${fmMatch[3]}`);
 }
 
+/** Replace or append the body of a `#### <section>` markdown heading. */
+function updateSection(content: string, section: string, newBody: string): string {
+  const header = `#### ${section}`;
+  const headerRe = new RegExp(`^${header}\\s*$`, "im");
+  const match = headerRe.exec(content);
+  if (match) {
+    // Find end of this section (next #### or EOF)
+    const afterHeader = match.index + match[0].length;
+    const nextHeader = content.slice(afterHeader).search(/^####\s+/m);
+    const sectionEnd = nextHeader !== -1 ? afterHeader + nextHeader : content.length;
+    return content.slice(0, afterHeader) + `\n\n${newBody}\n\n` + content.slice(sectionEnd);
+  }
+  // Section doesn't exist — append it
+  return content.trimEnd() + `\n\n${header}\n\n${newBody}\n`;
+}
+
 export class EmbeddedMcpServer {
   private httpServer: http.Server | undefined;
   private port = 0;
+  private findingMap = new FindingMap();
 
   getPort(): number {
     return this.port;
@@ -55,7 +73,7 @@ export class EmbeddedMcpServer {
 
   async start(terminalBridge: TerminalBridge, preferredPort: number): Promise<number> {
     const listenPort = await findAvailablePort(preferredPort);
-    const MAX_BODY_BYTES = 1024 * 1024; // 1 MB
+    await this.findingMap.activate();
 
     // SDK v1.29+ stateless mode requires a fresh transport per request.
     const self = this;
@@ -76,30 +94,14 @@ export class EmbeddedMcpServer {
         res.writeHead(404).end();
         return;
       }
-      // Enforce body size limit
-      let bodySize = 0;
-      let aborted = false;
-      req.on("data", (chunk: Buffer) => {
-        bodySize += chunk.length;
-        if (bodySize > MAX_BODY_BYTES) {
-          aborted = true;
-          res.writeHead(413, { "Content-Type": "application/json" }).end(
-            JSON.stringify({ error: "Request body too large" })
-          );
-          req.destroy();
+      try {
+        await handleWithFreshTransport(req, res);
+      } catch (err) {
+        logger.warn(`MCP request error: ${err}`);
+        if (!res.headersSent) {
+          res.writeHead(500).end();
         }
-      });
-      req.on("end", async () => {
-        if (aborted) return;
-        try {
-          await handleWithFreshTransport(req, res);
-        } catch (err) {
-          logger.warn(`MCP request error: ${err}`);
-          if (!res.headersSent) {
-            res.writeHead(500).end();
-          }
-        }
-      });
+      }
     });
 
     return new Promise((resolve, reject) => {
@@ -113,6 +115,7 @@ export class EmbeddedMcpServer {
   }
 
   stop(): Promise<void> {
+    this.findingMap.dispose();
     return new Promise((resolve) => {
       if (this.httpServer) {
         this.httpServer.close(() => resolve());
@@ -167,12 +170,27 @@ export class EmbeddedMcpServer {
     });
 
     server.resource("findings-list", "findings://list", async () => {
-      const findings = await this.getFindings();
+      const findings = this.findingMap.getAll();
       return {
         contents: [{
           uri: "findings://list",
           mimeType: "application/json",
           text: JSON.stringify(findings, null, 2),
+        }],
+      };
+    });
+
+    server.resource("engagement-summary", "engagement://summary", async () => {
+      const hosts = Context.HostState ?? [];
+      const users = Context.UserState ?? [];
+      const findings = this.findingMap.getAll();
+      const graph = await this.buildGraph();
+      const summary = buildEngagementSummary({ hosts, users, findings, graph });
+      return {
+        contents: [{
+          uri: "engagement://summary",
+          mimeType: "application/json",
+          text: JSON.stringify(summary, null, 2),
         }],
       };
     });
@@ -233,10 +251,9 @@ export class EmbeddedMcpServer {
         query: z.string().optional().describe("Free-text search in title and description"),
       },
       async ({ severity, tags, query }) => {
-        let findings = await this.getFindings();
-        if (severity || tags?.length || query) {
-          findings = filterFindings(findings, { severity, tags, query });
-        }
+        const findings = (severity || tags?.length || query)
+          ? this.findingMap.filter({ severity, tags, query })
+          : this.findingMap.getAll();
         return { content: [{ type: "text" as const, text: JSON.stringify(findings, null, 2) }] };
       }
     );
@@ -246,8 +263,7 @@ export class EmbeddedMcpServer {
       "Get a specific finding by ID",
       { id: z.string().describe("Finding ID (note filename)") },
       async ({ id }) => {
-        const findings = await this.getFindings();
-        const finding = findings.find((f) => f.id === id);
+        const finding = this.findingMap.getById(id);
         if (!finding) {
           return { content: [{ type: "text" as const, text: JSON.stringify({ error: `Finding '${id}' not found` }) }] };
         }
@@ -280,27 +296,35 @@ export class EmbeddedMcpServer {
 
     server.tool(
       "update_finding_frontmatter",
-      "Update a finding note's YAML frontmatter fields (severity, description, or custom properties)",
+      "Update a finding note's YAML frontmatter fields (severity, custom properties) and/or markdown body sections (description, references)",
       {
         id: z.string().describe("Finding ID (note filename)"),
         severity: z.enum(["critical", "high", "medium", "low", "info"]).optional().describe("New severity level"),
-        description: z.string().optional().describe("New description to set in frontmatter"),
+        description: z.string().optional().describe("New description (replaces #### description section body)"),
+        references: z.string().optional().describe("New references (replaces #### references section body)"),
         props: z.record(z.string(), z.string()).optional().describe("Additional YAML frontmatter key-value pairs to set"),
       },
-      async ({ id, severity, description, props }) => {
-        const folders = vscode.workspace.workspaceFolders;
-        if (!folders?.length) {
-          return { content: [{ type: "text" as const, text: JSON.stringify({ error: "No workspace folder open" }) }] };
+      async ({ id, severity, description, references, props }) => {
+        const uri = this.findingMap.getUri(id);
+        if (!uri) {
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: `Finding note '${id}' not found` }) }] };
         }
-        const uri = vscode.Uri.joinPath(folders[0].uri, "findings", id, `${id}.md`);
         let content: string;
         try {
           const raw = await vscode.workspace.fs.readFile(uri);
           content = new TextDecoder().decode(raw);
         } catch {
-          return { content: [{ type: "text" as const, text: JSON.stringify({ error: `Finding note '${id}' not found at ${uri.fsPath}` }) }] };
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: `Failed to read finding '${id}'` }) }] };
         }
-        content = updateFrontmatter(content, { severity, description, ...props });
+        // Update YAML frontmatter (severity + custom props only)
+        content = updateFrontmatter(content, { severity, ...props });
+        // Update markdown body sections
+        if (description !== undefined) {
+          content = updateSection(content, "description", description);
+        }
+        if (references !== undefined) {
+          content = updateSection(content, "references", references);
+        }
         await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(content));
         return { content: [{ type: "text" as const, text: JSON.stringify({ updated: id, path: uri.fsPath }) }] };
       }
@@ -355,6 +379,22 @@ export class EmbeddedMcpServer {
         };
       }
     );
+
+    server.tool(
+      "get_engagement_summary",
+      "Get a comprehensive summary of the current penetration testing engagement in one call. Returns: all hosts, credentials, findings with their wiki-link associations (which hosts/users/findings each finding connects to), per-host and per-user finding breakdowns, orphan findings, relationship graph with attack path, and computed statistics. Use this as your first call to understand the full engagement state.",
+      {},
+      async () => {
+        const hosts = Context.HostState ?? [];
+        const users = Context.UserState ?? [];
+        const findings = this.findingMap.getAll();
+        const graph = await this.buildGraph();
+        const summary = buildEngagementSummary({ hosts, users, findings, graph });
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }],
+        };
+      }
+    );
   }
 
   private registerPrompts(server: McpServer): void {
@@ -393,6 +433,35 @@ export class EmbeddedMcpServer {
         }],
       })
     );
+
+    server.prompt(
+      "analyze-engagement",
+      "Analyze the full engagement — findings, associations, attack chains — and identify gaps",
+      async () => {
+        const hosts = Context.HostState ?? [];
+        const users = Context.UserState ?? [];
+        const findings = this.findingMap.getAll();
+        const graph = await this.buildGraph();
+        const summary = buildEngagementSummary({ hosts, users, findings, graph });
+        return {
+          messages: [{
+            role: "user" as const,
+            content: {
+              type: "text" as const,
+              text:
+                `You are a penetration testing assistant. Analyze the current engagement and provide strategic guidance.\n\n` +
+                `Engagement Summary:\n${JSON.stringify(summary, null, 2)}\n\n` +
+                `Provide:\n` +
+                `1) Overall assessment — what phase is the engagement in (recon/scanning/exploitation/post-exploitation)?\n` +
+                `2) Key findings and their combined impact — look at findingAssociations to see what chains together\n` +
+                `3) Attack chains — which findings link to other findings? What is the full exploitation path?\n` +
+                `4) Coverage gaps — which hosts have no findings? Which users have no associated findings?\n` +
+                `5) Recommended next 3-5 actions with exact commands`,
+            },
+          }],
+        };
+      }
+    );
   }
 
   private async buildGraph() {
@@ -405,30 +474,5 @@ export class EmbeddedMcpServer {
       // Foam not available
     }
     return null;
-  }
-
-  private async getFindings(): Promise<Finding[]> {
-    const folders = vscode.workspace.workspaceFolders;
-    if (!folders?.length) {
-      return [];
-    }
-    try {
-      const pattern = new vscode.RelativePattern(folders[0], "findings/{*.md,*/*.md}");
-      const files = await vscode.workspace.findFiles(pattern);
-      const findings: Finding[] = [];
-      for (const file of files) {
-        const raw = await vscode.workspace.fs.readFile(file);
-        const content = new TextDecoder().decode(raw);
-        // Check it's actually a finding type note
-        if (!content.match(/^type:\s*finding/m)) {
-          continue;
-        }
-        const basename = file.path.split("/").pop()?.replace(/\.md$/, "") ?? file.path;
-        findings.push(parseFindingNote(basename, content));
-      }
-      return findings;
-    } catch {
-      return [];
-    }
   }
 }

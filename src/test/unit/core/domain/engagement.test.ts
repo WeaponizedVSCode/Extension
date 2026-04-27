@@ -227,6 +227,47 @@ suite("buildEngagementSummary", () => {
     assert.strictEqual(summary.unassociatedFindings[0].id, "orphan");
   });
 
+  test("severity counting is case-insensitive", () => {
+    const findings = [
+      { ...makeFinding("f1"), severity: "High" },
+      { ...makeFinding("f2"), severity: "CRITICAL" },
+      { ...makeFinding("f3"), severity: "Medium" },
+      { ...makeFinding("f4"), severity: "low" },
+    ];
+    const summary = buildEngagementSummary({
+      hosts: [],
+      users: [],
+      findings,
+      graph: null,
+    });
+    assert.strictEqual(summary.stats.totalFindings, 4);
+    assert.strictEqual(summary.stats.criticalFindings, 1);
+    assert.strictEqual(summary.stats.highFindings, 1);
+    assert.strictEqual(summary.stats.mediumFindings, 1);
+    assert.strictEqual(summary.stats.lowFindings, 1);
+  });
+
+  test("derives finding-to-service associations", () => {
+    const findings = [makeFinding("webshell")];
+    const nodes: GraphNode[] = [
+      { id: "webshell", type: "finding", title: "Web Shell" },
+      { id: "http-443", type: "service", title: "HTTPS/443" },
+    ];
+    const findingEdges: GraphEdge[] = [
+      { source: "webshell", target: "http-443" },
+    ];
+    const graph = makeGraph(nodes, findingEdges);
+    const summary = buildEngagementSummary({
+      hosts: [],
+      users: [],
+      findings,
+      graph,
+    });
+    const assoc = summary.findingAssociations.find((a) => a.finding.id === "webshell");
+    assert.ok(assoc);
+    assert.deepStrictEqual(assoc.services, ["http-443"]);
+  });
+
   test("no graph means all findings are unassociated", () => {
     const findings = [makeFinding("f1"), makeFinding("f2")];
     const summary = buildEngagementSummary({

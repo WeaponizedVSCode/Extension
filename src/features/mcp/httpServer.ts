@@ -181,11 +181,7 @@ export class EmbeddedMcpServer {
     });
 
     server.resource("engagement-summary", "engagement://summary", async () => {
-      const hosts = Context.HostState ?? [];
-      const users = Context.UserState ?? [];
-      const findings = this.findingMap.getAll();
-      const graph = await this.buildGraph();
-      const summary = buildEngagementSummary({ hosts, users, findings, graph });
+      const summary = await this.buildSummary();
       return {
         contents: [{
           uri: "engagement://summary",
@@ -385,11 +381,7 @@ export class EmbeddedMcpServer {
       "Get a comprehensive summary of the current penetration testing engagement in one call. Returns: all hosts, credentials, findings with their wiki-link associations (which hosts/users/findings each finding connects to), per-host and per-user finding breakdowns, orphan findings, relationship graph with attack path, and computed statistics. Use this as your first call to understand the full engagement state.",
       {},
       async () => {
-        const hosts = Context.HostState ?? [];
-        const users = Context.UserState ?? [];
-        const findings = this.findingMap.getAll();
-        const graph = await this.buildGraph();
-        const summary = buildEngagementSummary({ hosts, users, findings, graph });
+        const summary = await this.buildSummary();
         return {
           content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }],
         };
@@ -438,11 +430,7 @@ export class EmbeddedMcpServer {
       "analyze-engagement",
       "Analyze the full engagement — findings, associations, attack chains — and identify gaps",
       async () => {
-        const hosts = Context.HostState ?? [];
-        const users = Context.UserState ?? [];
-        const findings = this.findingMap.getAll();
-        const graph = await this.buildGraph();
-        const summary = buildEngagementSummary({ hosts, users, findings, graph });
+        const summary = await this.buildSummary();
         return {
           messages: [{
             role: "user" as const,
@@ -462,6 +450,14 @@ export class EmbeddedMcpServer {
         };
       }
     );
+  }
+
+  private async buildSummary() {
+    const hosts = Context.HostState ?? [];
+    const users = Context.UserState ?? [];
+    const findings = this.findingMap.getAll();
+    const graph = await this.buildGraph();
+    return buildEngagementSummary({ hosts, users, findings, graph });
   }
 
   private async buildGraph() {

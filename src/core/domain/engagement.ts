@@ -61,7 +61,7 @@ export function buildEngagementSummary(input: EngagementSummaryInput): Engagemen
   // Severity counts
   const sev = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
   for (const f of findings) {
-    const s = f.severity as keyof typeof sev;
+    const s = (f.severity?.toLowerCase() ?? "") as keyof typeof sev;
     if (s in sev) {
       sev[s]++;
     }

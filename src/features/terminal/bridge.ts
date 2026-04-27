@@ -11,11 +11,24 @@ interface TerminalInfo {
 const MAX_OUTPUT_BYTES = 64 * 1024; // 64KB per terminal log
 const FLUSH_INTERVAL_MS = 500;
 
-// Matches ANSI CSI sequences and other common escape sequences
-const ANSI_RE = /\x1b(?:\[[0-9;]*[A-Za-z]|\][^\x07]*\x07|[()][0-9A-Za-z]|.)/g;
+// Matches ANSI/VT100 escape sequences:
+// - CSI sequences: ESC [ [private-marker] [params] final-byte  (covers ?2004h, etc.)
+// - OSC sequences: ESC ] ... BEL
+// - character set: ESC ( ) [designator]
+// - other two-char ESC sequences
+const ANSI_RE = /\x1b(?:\[[?!>]?[0-9;]*[A-Za-z]|\][^\x07]*\x07|[()][0-9A-Za-z]|.)/g;
 
-function stripAnsi(text: string): string {
+export function stripAnsi(text: string): string {
   return text.replace(ANSI_RE, "");
+}
+
+/**
+ * Process raw terminal output for AI consumption:
+ * strip ANSI codes, trim leading/trailing whitespace.
+ * Exported for unit testing — no vscode dependency.
+ */
+export function processTerminalOutput(raw: string): string {
+  return stripAnsi(raw).trim();
 }
 
 const encoder = new TextEncoder();
@@ -133,7 +146,7 @@ export class TerminalBridge {
       // integration, no PS1 parsing required, works with any prompt format
       const last = this.lastCommandOutput.get(resolvedId);
       if (last !== undefined) {
-        return stripAnsi(last).trim();
+        return processTerminalOutput(last);
       }
       return `No command output recorded yet for terminal ${id}`;
     }
@@ -142,7 +155,7 @@ export class TerminalBridge {
     const logUri = vscode.Uri.joinPath(this.terminalsDir, `${resolvedId}.log`);
     try {
       const data = await vscode.workspace.fs.readFile(logUri);
-      const content = stripAnsi(decoder.decode(data));
+      const content = processTerminalOutput(decoder.decode(data));
       return content.split("\n").slice(-lines).join("\n");
     } catch {
       return `No output found for terminal ${id}`;

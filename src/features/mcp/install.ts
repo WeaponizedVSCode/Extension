@@ -79,6 +79,9 @@ export async function autoUpdateMcpConfig(port: number): Promise<void> {
   try {
     await updater(workspace.uri, port);
     logger.info(`Auto-updated ${CLI_CONFIG_PATHS[target]}: port → ${port}`);
+    vscode.window.showInformationMessage(
+      `Weaponized MCP server ready on port ${port} (${CLI_LABELS[target]})`
+    );
   } catch {
     // config file doesn't exist or doesn't contain our entry — skip silently
   }

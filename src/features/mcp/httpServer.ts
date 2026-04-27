@@ -78,6 +78,7 @@ export class EmbeddedMcpServer {
     // SDK v1.29+ stateless mode requires a fresh transport per request.
     const self = this;
     const handleWithFreshTransport = async (req: http.IncomingMessage, res: http.ServerResponse) => {
+      logger.debug(`MCP: handling ${req.method} request`);
       const server = new McpServer({ name: "weaponized-vscode", version: "1.0.0" });
       const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
       self.registerResources(server);
@@ -87,10 +88,12 @@ export class EmbeddedMcpServer {
       await transport.handleRequest(req, res);
       await transport.close();
       await server.close();
+      logger.debug("MCP: request handled successfully");
     };
 
     this.httpServer = http.createServer(async (req, res) => {
       if (req.url !== "/mcp") {
+        logger.debug(`MCP: rejected non-MCP request to ${req.url}`);
         res.writeHead(404).end();
         return;
       }
@@ -115,10 +118,14 @@ export class EmbeddedMcpServer {
   }
 
   stop(): Promise<void> {
+    logger.info("MCP server shutting down");
     this.findingMap.dispose();
     return new Promise((resolve) => {
       if (this.httpServer) {
-        this.httpServer.close(() => resolve());
+        this.httpServer.close(() => {
+          logger.debug("MCP server stopped");
+          resolve();
+        });
       } else {
         resolve();
       }
@@ -126,39 +133,44 @@ export class EmbeddedMcpServer {
   }
 
   private registerResources(server: McpServer): void {
-    server.resource("hosts-list", "hosts://list", async () => ({
-      contents: [{
+    server.resource("hosts-list", "hosts://list", async () => {
+      logger.debug("MCP resource: hosts-list");
+      return { contents: [{
         uri: "hosts://list",
         mimeType: "application/json",
         text: JSON.stringify(Context.HostState ?? [], null, 2),
-      }],
-    }));
+      }] };
+    });
 
-    server.resource("hosts-current", "hosts://current", async () => ({
-      contents: [{
+    server.resource("hosts-current", "hosts://current", async () => {
+      logger.debug("MCP resource: hosts-current");
+      return { contents: [{
         uri: "hosts://current",
         mimeType: "application/json",
         text: JSON.stringify(Context.HostState?.find((h) => h.is_current) ?? null, null, 2),
-      }],
-    }));
+      }] };
+    });
 
-    server.resource("users-list", "users://list", async () => ({
-      contents: [{
+    server.resource("users-list", "users://list", async () => {
+      logger.debug("MCP resource: users-list");
+      return { contents: [{
         uri: "users://list",
         mimeType: "application/json",
         text: JSON.stringify(Context.UserState ?? [], null, 2),
-      }],
-    }));
+      }] };
+    });
 
-    server.resource("users-current", "users://current", async () => ({
-      contents: [{
+    server.resource("users-current", "users://current", async () => {
+      logger.debug("MCP resource: users-current");
+      return { contents: [{
         uri: "users://current",
         mimeType: "application/json",
         text: JSON.stringify(Context.UserState?.find((u) => u.is_current) ?? null, null, 2),
-      }],
-    }));
+      }] };
+    });
 
     server.resource("graph-relationships", "graph://relationships", async () => {
+      logger.debug("MCP resource: graph-relationships");
       const graph = await this.buildGraph();
       return {
         contents: [{
@@ -170,6 +182,7 @@ export class EmbeddedMcpServer {
     });
 
     server.resource("findings-list", "findings://list", async () => {
+      logger.debug("MCP resource: findings-list");
       const findings = this.findingMap.getAll();
       return {
         contents: [{
@@ -181,6 +194,7 @@ export class EmbeddedMcpServer {
     });
 
     server.resource("engagement-summary", "engagement://summary", async () => {
+      logger.debug("MCP resource: engagement-summary");
       const summary = await this.buildSummary();
       return {
         contents: [{
@@ -193,13 +207,15 @@ export class EmbeddedMcpServer {
   }
 
   private registerTools(server: McpServer, bridge: TerminalBridge): void {
-    server.tool("get_targets", "Get all discovered hosts/targets", {}, async () => ({
-      content: [{ type: "text" as const, text: JSON.stringify(Context.HostState ?? [], null, 2) }],
-    }));
+    server.tool("get_targets", "Get all discovered hosts/targets", {}, async () => {
+      logger.debug("MCP tool: get_targets");
+      return { content: [{ type: "text" as const, text: JSON.stringify(Context.HostState ?? [], null, 2) }] };
+    });
 
-    server.tool("get_credentials", "Get all discovered credentials", {}, async () => ({
-      content: [{ type: "text" as const, text: JSON.stringify(Context.UserState ?? [], null, 2) }],
-    }));
+    server.tool("get_credentials", "Get all discovered credentials", {}, async () => {
+      logger.debug("MCP tool: get_credentials");
+      return { content: [{ type: "text" as const, text: JSON.stringify(Context.UserState ?? [], null, 2) }] };
+    });
 
     server.tool(
       "get_hosts_formatted",
@@ -210,6 +226,7 @@ export class EmbeddedMcpServer {
         ),
       },
       async ({ format }) => {
+        logger.debug(`MCP tool: get_hosts_formatted (format=${format})`);
         const hosts = (Context.HostState ?? []).map((h) => new Host().init(h));
         return { content: [{ type: "text" as const, text: dumpHosts(hosts, format as HostDumpFormat) }] };
       }
@@ -224,12 +241,14 @@ export class EmbeddedMcpServer {
         ),
       },
       async ({ format }) => {
+        logger.debug(`MCP tool: get_credentials_formatted (format=${format})`);
         const users = (Context.UserState ?? []).map((u) => new UserCredential().init(u));
         return { content: [{ type: "text" as const, text: dumpUserCredentials(users, format as UserDumpFormat) }] };
       }
     );
 
     server.tool("get_graph", "Get full relationship graph — nodes, edges, attack path, and Mermaid diagram", {}, async () => {
+      logger.debug("MCP tool: get_graph");
       const graph = await this.buildGraph();
       if (!graph) {
         return { content: [{ type: "text" as const, text: JSON.stringify({ error: "No graph data available. Foam may not be initialized." }) }] };
@@ -247,6 +266,7 @@ export class EmbeddedMcpServer {
         query: z.string().optional().describe("Free-text search in title and description"),
       },
       async ({ severity, tags, query }) => {
+        logger.debug(`MCP tool: list_findings (severity=${severity}, tags=${tags?.join(",")}, query=${query})`);
         const findings = (severity || tags?.length || query)
           ? this.findingMap.filter({ severity, tags, query })
           : this.findingMap.getAll();
@@ -259,6 +279,7 @@ export class EmbeddedMcpServer {
       "Get a specific finding by ID",
       { id: z.string().describe("Finding ID (note filename)") },
       async ({ id }) => {
+        logger.debug(`MCP tool: get_finding (id=${id})`);
         const finding = this.findingMap.getById(id);
         if (!finding) {
           return { content: [{ type: "text" as const, text: JSON.stringify({ error: `Finding '${id}' not found` }) }] };
@@ -278,6 +299,7 @@ export class EmbeddedMcpServer {
         references: z.string().optional().describe("References or links"),
       },
       async ({ title, severity, tags, description, references }) => {
+        logger.debug(`MCP tool: create_finding (title=${title}, severity=${severity ?? "info"})`);
         const folders = vscode.workspace.workspaceFolders;
         if (!folders?.length) {
           return { content: [{ type: "text" as const, text: JSON.stringify({ error: "No workspace folder open" }) }] };
@@ -301,6 +323,7 @@ export class EmbeddedMcpServer {
         props: z.record(z.string(), z.string()).optional().describe("Additional YAML frontmatter key-value pairs to set"),
       },
       async ({ id, severity, description, references, props }) => {
+        logger.debug(`MCP tool: update_finding_frontmatter (id=${id})`);
         const uri = this.findingMap.getUri(id);
         if (!uri) {
           return { content: [{ type: "text" as const, text: JSON.stringify({ error: `Finding note '${id}' not found` }) }] };
@@ -326,9 +349,10 @@ export class EmbeddedMcpServer {
       }
     );
 
-    server.tool("list_terminals", "List all open VS Code terminals", {}, async () => ({
-      content: [{ type: "text" as const, text: JSON.stringify(bridge.getTerminals(), null, 2) }],
-    }));
+    server.tool("list_terminals", "List all open VS Code terminals", {}, async () => {
+      logger.debug("MCP tool: list_terminals");
+      return { content: [{ type: "text" as const, text: JSON.stringify(bridge.getTerminals(), null, 2) }] };
+    });
 
     server.tool(
       "read_terminal",
@@ -337,9 +361,10 @@ export class EmbeddedMcpServer {
         terminalId: z.string().describe("Terminal ID or name"),
         lines: z.number().optional().describe("Number of trailing lines to return (default: 50)"),
       },
-      async ({ terminalId, lines }) => ({
-        content: [{ type: "text" as const, text: await bridge.getTerminalOutput(terminalId, lines ?? 50) }],
-      })
+      async ({ terminalId, lines }) => {
+        logger.debug(`MCP tool: read_terminal (id=${terminalId}, lines=${lines ?? 50})`);
+        return { content: [{ type: "text" as const, text: await bridge.getTerminalOutput(terminalId, lines ?? 50) }] };
+      }
     );
 
     server.tool(
@@ -350,6 +375,7 @@ export class EmbeddedMcpServer {
         command: z.string().describe("Command to execute"),
       },
       async ({ terminalId, command }) => {
+        logger.debug(`MCP tool: send_to_terminal (id=${terminalId})`);
         const ok = bridge.sendCommandDirect(terminalId, command);
         return {
           content: [{ type: "text" as const, text: ok ? `Command sent to terminal ${terminalId}: ${command}` : `Terminal ${terminalId} not found` }],
@@ -368,6 +394,7 @@ export class EmbeddedMcpServer {
         cwd: z.string().optional().describe("Working directory for the terminal"),
       },
       async ({ profile, name, cwd }) => {
+        logger.debug(`MCP tool: create_terminal (profile=${profile ?? "shell"}, name=${name})`);
         const effectiveProfile = profile === "shell" ? undefined : profile;
         const result = bridge.createTerminal({ name, profile: effectiveProfile, cwd });
         return {
@@ -381,6 +408,7 @@ export class EmbeddedMcpServer {
       "Get a comprehensive summary of the current penetration testing engagement in one call. Returns: all hosts, credentials, findings with their wiki-link associations (which hosts/users/findings each finding connects to), per-host and per-user finding breakdowns, orphan findings, relationship graph with attack path, and computed statistics. Use this as your first call to understand the full engagement state.",
       {},
       async () => {
+        logger.debug("MCP tool: get_engagement_summary");
         const summary = await this.buildSummary();
         return {
           content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }],
@@ -394,42 +422,49 @@ export class EmbeddedMcpServer {
       "analyze-output",
       "Analyze tool output and identify findings",
       { output: z.string() },
-      async ({ output }) => ({
-        messages: [{
-          role: "user" as const,
-          content: {
-            type: "text" as const,
-            text:
-              `You are a penetration testing assistant. Analyze the following tool output:\n\n${output}\n\n` +
-              `Current targets: ${JSON.stringify((Context.HostState ?? []).map((h) => ({ hostname: h.hostname, ip: h.ip })))}\n\n` +
-              `Provide: 1) Key findings 2) Recommended next steps 3) Commands to run`,
-          },
-        }],
-      })
+      async ({ output }) => {
+        logger.debug("MCP prompt: analyze-output");
+        return {
+          messages: [{
+            role: "user" as const,
+            content: {
+              type: "text" as const,
+              text:
+                `You are a penetration testing assistant. Analyze the following tool output:\n\n${output}\n\n` +
+                `Current targets: ${JSON.stringify((Context.HostState ?? []).map((h) => ({ hostname: h.hostname, ip: h.ip })))}\n\n` +
+                `Provide: 1) Key findings 2) Recommended next steps 3) Commands to run`,
+            },
+          }],
+        };
+      }
     );
 
     server.prompt(
       "suggest-next-steps",
       "Suggest next pentest actions based on current state",
-      async () => ({
-        messages: [{
-          role: "user" as const,
-          content: {
-            type: "text" as const,
-            text:
-              `You are a penetration testing assistant. Based on the current engagement state:\n\n` +
-              `Hosts: ${JSON.stringify((Context.HostState ?? []).map((h) => ({ hostname: h.hostname, ip: h.ip, is_dc: h.is_dc })))}\n` +
-              `Users: ${JSON.stringify((Context.UserState ?? []).map((u) => ({ user: u.user, login: u.login, password: u.password, nt_hash: u.nt_hash })))}\n\n` +
-              `Suggest the next 3-5 actions with exact commands.`,
-          },
-        }],
-      })
+      async () => {
+        logger.debug("MCP prompt: suggest-next-steps");
+        return {
+          messages: [{
+            role: "user" as const,
+            content: {
+              type: "text" as const,
+              text:
+                `You are a penetration testing assistant. Based on the current engagement state:\n\n` +
+                `Hosts: ${JSON.stringify((Context.HostState ?? []).map((h) => ({ hostname: h.hostname, ip: h.ip, is_dc: h.is_dc })))}\n` +
+                `Users: ${JSON.stringify((Context.UserState ?? []).map((u) => ({ user: u.user, login: u.login, password: u.password, nt_hash: u.nt_hash })))}\n\n` +
+                `Suggest the next 3-5 actions with exact commands.`,
+            },
+          }],
+        };
+      }
     );
 
     server.prompt(
       "analyze-engagement",
       "Analyze the full engagement — findings, associations, attack chains — and identify gaps",
       async () => {
+        logger.debug("MCP prompt: analyze-engagement");
         const summary = await this.buildSummary();
         return {
           messages: [{

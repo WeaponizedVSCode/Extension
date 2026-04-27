@@ -28,6 +28,7 @@ export class TerminalBridge {
   private terminalMap = new Map<vscode.Terminal, string>();
   private nextId = 1;
   private outputBuffers = new Map<string, string>();
+  private lastCommandOutput = new Map<string, string>();
   private flushTimer: ReturnType<typeof setInterval> | undefined;
 
   constructor(stateDir: vscode.Uri) {
@@ -58,10 +59,16 @@ export class TerminalBridge {
         const id = this.terminalMap.get(event.terminal);
         if (!id) return;
         const cmd = event.execution.commandLine.value;
+        // Reset last-command buffer for this terminal — command boundary is
+        // provided by VSCode shell integration, no PS1 parsing needed
+        this.lastCommandOutput.set(id, `$ ${cmd}\n`);
+        // Also write a marker into the full session log for history mode
         this.bufferOutput(id, `\n$ ${cmd}\n`);
         try {
           for await (const chunk of event.execution.read()) {
             this.bufferOutput(id, chunk);
+            // Accumulate into the per-command buffer as well
+            this.lastCommandOutput.set(id, (this.lastCommandOutput.get(id) ?? "") + chunk);
           }
         } catch {
           // terminal may have closed
@@ -86,6 +93,7 @@ export class TerminalBridge {
     this.terminalMap.delete(terminal);
     if (id) {
       this.outputBuffers.delete(id);
+      this.lastCommandOutput.delete(id);
       const logUri = vscode.Uri.joinPath(this.terminalsDir, `${id}.log`);
       vscode.workspace.fs.delete(logUri).then(undefined, () => {});
     }
@@ -107,33 +115,34 @@ export class TerminalBridge {
 
   /** Reads terminal output. By default returns only the output of the last command. */
   async getTerminalOutput(id: string, lines: number = 50, lastCommandOnly: boolean = true): Promise<string> {
-    let logUri = vscode.Uri.joinPath(this.terminalsDir, `${id}.log`);
-    let found = true;
+    // Resolve terminal ID (may be passed by name)
+    let resolvedId = id;
     try {
-      await vscode.workspace.fs.stat(logUri);
+      await vscode.workspace.fs.stat(vscode.Uri.joinPath(this.terminalsDir, `${id}.log`));
     } catch {
-      found = false;
       for (const [terminal, tid] of this.terminalMap) {
         if (terminal.name === id) {
-          logUri = vscode.Uri.joinPath(this.terminalsDir, `${tid}.log`);
-          found = true;
+          resolvedId = tid;
           break;
         }
       }
     }
-    if (!found) return `No output found for terminal ${id}`;
+
+    if (lastCommandOnly) {
+      // Use in-memory per-command buffer — boundary provided by VSCode shell
+      // integration, no PS1 parsing required, works with any prompt format
+      const last = this.lastCommandOutput.get(resolvedId);
+      if (last !== undefined) {
+        return stripAnsi(last).trim();
+      }
+      return `No command output recorded yet for terminal ${id}`;
+    }
+
+    // Full session history tail
+    const logUri = vscode.Uri.joinPath(this.terminalsDir, `${resolvedId}.log`);
     try {
       const data = await vscode.workspace.fs.readFile(logUri);
       const content = stripAnsi(decoder.decode(data));
-
-      if (lastCommandOnly) {
-        // Find the last "$ cmd" marker written by the shell integration listener
-        const lastPrompt = content.lastIndexOf("\n$ ");
-        if (lastPrompt !== -1) {
-          return content.slice(lastPrompt + 1).trim();
-        }
-      }
-
       return content.split("\n").slice(-lines).join("\n");
     } catch {
       return `No output found for terminal ${id}`;

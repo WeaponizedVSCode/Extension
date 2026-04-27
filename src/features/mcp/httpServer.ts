@@ -290,7 +290,7 @@ export class EmbeddedMcpServer {
 
     server.tool(
       "create_finding",
-      "Create a new finding note with YAML frontmatter (title, severity, tags, description)",
+      "Create a new finding note as a markdown file in the workspace. Pass the full finding content here — title, severity, tags, description, and references are written into the file's YAML frontmatter and body. The file is immediately available to Foam and will appear in get_engagement_summary. To read it back, use get_finding with the returned ID.",
       {
         title: z.string().describe("Finding title (also used as filename)"),
         severity: z.enum(["critical", "high", "medium", "low", "info"]).optional().describe("Severity level (default: info)"),
@@ -369,7 +369,7 @@ export class EmbeddedMcpServer {
 
     server.tool(
       "send_to_terminal",
-      "Send a command to a VS Code terminal",
+      "Send a command to a VS Code terminal (fire-and-forget). Returns immediately after dispatching — does not wait for the command to finish or capture output. Use read_terminal afterwards to collect results. This is intentional: long-running commands (listeners, interactive tools) would otherwise block the MCP context indefinitely.",
       {
         terminalId: z.string().describe("Terminal ID or name"),
         command: z.string().describe("Command to execute"),
@@ -405,13 +405,16 @@ export class EmbeddedMcpServer {
 
     server.tool(
       "get_engagement_summary",
-      "Get a comprehensive summary of the current penetration testing engagement in one call. Returns: all hosts, credentials, findings with their wiki-link associations (which hosts/users/findings each finding connects to), per-host and per-user finding breakdowns, orphan findings, relationship graph with attack path, and computed statistics. Use this as your first call to understand the full engagement state.",
-      {},
-      async () => {
-        logger.debug("MCP tool: get_engagement_summary");
+      "Get a comprehensive summary of the current penetration testing engagement. Returns: all hosts, credentials, findings with their wiki-link associations (which hosts/users/findings each finding connects to), per-host and per-user finding breakdowns, orphan findings, and computed statistics. Optionally includes the full relationship graph (nodes, edges, attack path, Mermaid diagram) — omit it when you only need counts and associations to reduce response size. Use this as your first call to understand the full engagement state.",
+      {
+        include_graph: z.boolean().optional().describe("Include the full relationship graph in the response (default: false). Set to true when you need the Mermaid diagram, attack path, or raw edge data."),
+      },
+      async ({ include_graph }) => {
+        logger.debug(`MCP tool: get_engagement_summary (include_graph=${include_graph ?? false})`);
         const summary = await this.buildSummary();
+        const result = include_graph ? summary : { ...summary, graph: undefined };
         return {
-          content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }],
+          content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
         };
       }
     );

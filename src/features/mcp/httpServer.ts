@@ -356,14 +356,16 @@ export class EmbeddedMcpServer {
 
     server.tool(
       "read_terminal",
-      "Read recent output from a VS Code terminal",
+      "Read output from a VS Code terminal. By default returns only the output of the last command (everything after the most recent '$ cmd' prompt marker), with ANSI escape codes stripped. Set last_command_only=false to get a tail of the full session history instead.",
       {
         terminalId: z.string().describe("Terminal ID or name"),
-        lines: z.number().optional().describe("Number of trailing lines to return (default: 50)"),
+        last_command_only: z.boolean().optional().describe("Return only the output of the last command (default: true). Set false to get a tail of full session history."),
+        lines: z.number().optional().describe("Number of trailing lines to return when last_command_only=false (default: 50)"),
       },
-      async ({ terminalId, lines }) => {
-        logger.debug(`MCP tool: read_terminal (id=${terminalId}, lines=${lines ?? 50})`);
-        return { content: [{ type: "text" as const, text: await bridge.getTerminalOutput(terminalId, lines ?? 50) }] };
+      async ({ terminalId, last_command_only, lines }) => {
+        const lastOnly = last_command_only ?? true;
+        logger.debug(`MCP tool: read_terminal (id=${terminalId}, last_command_only=${lastOnly})`);
+        return { content: [{ type: "text" as const, text: await bridge.getTerminalOutput(terminalId, lines ?? 50, lastOnly) }] };
       }
     );
 

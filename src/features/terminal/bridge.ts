@@ -11,6 +11,13 @@ interface TerminalInfo {
 const MAX_OUTPUT_BYTES = 64 * 1024; // 64KB per terminal log
 const FLUSH_INTERVAL_MS = 500;
 
+// Matches ANSI CSI sequences and other common escape sequences
+const ANSI_RE = /\x1b(?:\[[0-9;]*[A-Za-z]|\][^\x07]*\x07|[()][0-9A-Za-z]|.)/g;
+
+function stripAnsi(text: string): string {
+  return text.replace(ANSI_RE, "");
+}
+
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -98,8 +105,8 @@ export class TerminalBridge {
     return list;
   }
 
-  /** Reads the last `lines` lines of output for a terminal (by ID or name). */
-  async getTerminalOutput(id: string, lines: number = 50): Promise<string> {
+  /** Reads terminal output. By default returns only the output of the last command. */
+  async getTerminalOutput(id: string, lines: number = 50, lastCommandOnly: boolean = true): Promise<string> {
     let logUri = vscode.Uri.joinPath(this.terminalsDir, `${id}.log`);
     let found = true;
     try {
@@ -117,7 +124,16 @@ export class TerminalBridge {
     if (!found) return `No output found for terminal ${id}`;
     try {
       const data = await vscode.workspace.fs.readFile(logUri);
-      const content = decoder.decode(data);
+      const content = stripAnsi(decoder.decode(data));
+
+      if (lastCommandOnly) {
+        // Find the last "$ cmd" marker written by the shell integration listener
+        const lastPrompt = content.lastIndexOf("\n$ ");
+        if (lastPrompt !== -1) {
+          return content.slice(lastPrompt + 1).trim();
+        }
+      }
+
       return content.split("\n").slice(-lines).join("\n");
     } catch {
       return `No output found for terminal ${id}`;

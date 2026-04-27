@@ -8,7 +8,8 @@ interface TerminalInfo {
   cwd?: string;
 }
 
-const MAX_OUTPUT_BYTES = 64 * 1024; // 64KB per terminal log
+const MAX_OUTPUT_BYTES = 64 * 1024; // 64KB per terminal session log
+export const MAX_LAST_CMD_BYTES = 16 * 1024; // 16KB for last-command buffer (handles long-running cmds)
 const FLUSH_INTERVAL_MS = 500;
 
 // Matches ANSI/VT100 escape sequences:
@@ -80,8 +81,18 @@ export class TerminalBridge {
         try {
           for await (const chunk of event.execution.read()) {
             this.bufferOutput(id, chunk);
-            // Accumulate into the per-command buffer as well
-            this.lastCommandOutput.set(id, (this.lastCommandOutput.get(id) ?? "") + chunk);
+            // Cap last-command buffer to avoid unbounded growth for long-running
+            // commands like nc, msfconsole, tail -f, etc. Keep the tail so that
+            // read_terminal always returns the most recent output.
+            const prev = this.lastCommandOutput.get(id) ?? "";
+            const next = prev + chunk;
+            const encoded = encoder.encode(next);
+            this.lastCommandOutput.set(
+              id,
+              encoded.byteLength > MAX_LAST_CMD_BYTES
+                ? decoder.decode(encoded.slice(-MAX_LAST_CMD_BYTES))
+                : next
+            );
           }
         } catch {
           // terminal may have closed

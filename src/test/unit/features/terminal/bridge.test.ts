@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { stripAnsi, processTerminalOutput } from "../../../../features/terminal/bridge";
+import { stripAnsi, processTerminalOutput, MAX_LAST_CMD_BYTES } from "../../../../features/terminal/bridge";
 
 suite("stripAnsi", () => {
   test("passes through plain text unchanged", () => {
@@ -112,3 +112,102 @@ suite("processTerminalOutput", () => {
     assert.ok(!result.includes("\x1b"), "no escape codes");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Simulate the last-command buffer cap logic used in onDidStartTerminalShellExecution.
+// The TerminalBridge keeps at most MAX_LAST_CMD_BYTES bytes of the most recent
+// command output in memory to prevent nc / msfconsole / tail -f from growing
+// the buffer without bound.
+// ---------------------------------------------------------------------------
+
+/**
+ * Mirrors the cap logic in bridge.ts so we can test it in isolation.
+ * In production this runs inside the onDidStartTerminalShellExecution loop.
+ */
+function simulateLastCmdBuffer(chunks: string[]): string {
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+  let buf = "";
+  for (const chunk of chunks) {
+    const next = buf + chunk;
+    const encoded = enc.encode(next);
+    buf =
+      encoded.byteLength > MAX_LAST_CMD_BYTES
+        ? dec.decode(encoded.slice(-MAX_LAST_CMD_BYTES))
+        : next;
+  }
+  return buf;
+}
+
+suite("last-command buffer cap (nc / long-running commands)", () => {
+  test("small output is kept verbatim", () => {
+    const chunks = ["line1\n", "line2\n", "line3\n"];
+    const result = simulateLastCmdBuffer(chunks);
+    assert.strictEqual(result, "line1\nline2\nline3\n");
+  });
+
+  test("buffer never exceeds MAX_LAST_CMD_BYTES", () => {
+    // Generate output well beyond the cap
+    const bigChunk = "A".repeat(1024); // 1KB per chunk
+    const chunks = Array.from({ length: 30 }, () => bigChunk); // 30KB total > 16KB cap
+    const result = simulateLastCmdBuffer(chunks);
+    const enc = new TextEncoder();
+    assert.ok(
+      enc.encode(result).byteLength <= MAX_LAST_CMD_BYTES,
+      `buffer should be ≤ ${MAX_LAST_CMD_BYTES} bytes, got ${enc.encode(result).byteLength}`
+    );
+  });
+
+  test("keeps the tail, not the head", () => {
+    // First part: noise that should be truncated
+    const head = Array.from({ length: 20 }, (_, i) => `old-line-${i}\n`).join("");
+    // Second part: the recent output that must survive
+    const tail = "connection from 10.10.10.99 port 9999\nid\nuid=0(root)\n";
+    // Feed head as one large chunk, tail as another
+    const result = simulateLastCmdBuffer([head, tail]);
+    assert.ok(result.includes("uid=0(root)"), "recent output must be preserved");
+    // If the buffer was capped, the very beginning of head should be gone
+    const enc = new TextEncoder();
+    if (enc.encode(head + tail).byteLength > MAX_LAST_CMD_BYTES) {
+      assert.ok(!result.startsWith("old-line-0"), "oldest output should have been dropped");
+    }
+  });
+
+  test("many small chunks from nc reverse shell do not blow up", () => {
+    // Simulate a reverse shell streaming line by line for a long time
+    const enc = new TextEncoder();
+    const lines = Array.from({ length: 5000 }, (_, i) => `output line ${i}\n`);
+    const result = simulateLastCmdBuffer(lines);
+    assert.ok(
+      enc.encode(result).byteLength <= MAX_LAST_CMD_BYTES,
+      "5000 lines should be capped to 16KB"
+    );
+    // Most recent lines must still be there
+    assert.ok(result.includes("output line 4999"), "last line must survive");
+  });
+
+  test("single chunk larger than cap is truncated to tail", () => {
+    const enc = new TextEncoder();
+    const huge = "x".repeat(MAX_LAST_CMD_BYTES * 2);
+    const result = simulateLastCmdBuffer([huge]);
+    assert.ok(enc.encode(result).byteLength <= MAX_LAST_CMD_BYTES);
+    // Should end with the tail of the original string
+    assert.ok(result.endsWith("x".repeat(100)));
+  });
+
+  test("processTerminalOutput on capped buffer strips ANSI cleanly", () => {
+    // Verify that capped buffer still works correctly with processTerminalOutput
+    const chunks = [
+      "\x1b[32mlistening on [any] 4444\x1b[0m\n",
+      "\x1b[1mconnect to [127.0.0.1] from ...\x1b[0m\n",
+      "id\n",
+      "\x1b[31muid=0(root) gid=0(root)\x1b[0m\n",
+    ];
+    const buf = simulateLastCmdBuffer(chunks);
+    const result = processTerminalOutput(buf);
+    assert.ok(!result.includes("\x1b"), "no escape codes after processTerminalOutput");
+    assert.ok(result.includes("uid=0(root) gid=0(root)"));
+    assert.ok(result.includes("listening on [any] 4444"));
+  });
+});
+

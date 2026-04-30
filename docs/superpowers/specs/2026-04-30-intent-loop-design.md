@@ -330,6 +330,165 @@ create_finding 不传 intent_id，Finding 是纯粹的事实记录。
 
 ---
 
+## 实现细节补充
+
+### 1. IntentQueue 与 Context 的集成方式
+
+`IntentQueue` **不挂到 Context 单例**，独立直接读写 `workspaceState`。
+
+```typescript
+// src/features/intent/queue/intentQueue.ts
+export class IntentQueue {
+  private static readonly QUEUE_KEY = "weaponized.intentQueue";
+  private static readonly GOAL_KEY  = "weaponized.goal";
+
+  static getAll(): Intent[]
+  static add(intent: Intent): void
+  static update(id: string, updates: Partial<Intent>): void
+  static getByStatus(status: IntentStatus): Intent[]
+  static getGoal(): Goal | null
+  static setGoal(goal: Goal): void
+  // 所有方法通过 Context.context.workspaceState 读写
+}
+```
+
+理由：Intent 是独立生命周期，与 HostState/UserState 无关联，不需要合并进 Context。
+MCP 工具和 TreeView 统一通过 `IntentQueue` 静态方法访问，不直接读写 workspaceState。
+
+---
+
+### 2. TreeView 刷新机制
+
+`IntentTreeProvider` 持有一个 `EventEmitter<void>`，暴露为 `onDidChangeTreeData`。
+所有写操作（`IntentQueue.add` / `IntentQueue.update`）执行后**必须**触发刷新。
+
+```typescript
+// intentTreeProvider.ts
+private _onDidChangeTreeData = new vscode.EventEmitter<void>();
+readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+
+refresh(): void {
+  this._onDidChangeTreeData.fire();
+}
+```
+
+触发点：
+- MCP 工具 `create_intent` / `update_intent_status` / `execute_intent` / `set_goal` 执行后调用 `provider.refresh()`
+- `weapon.intent.approve` / `weapon.intent.skip` 命令执行后调用 `provider.refresh()`
+
+`EmbeddedMcpServer` 通过构造参数接收 `IntentTreeProvider` 引用（与现有 `TerminalBridge` 传参模式一致）。
+
+---
+
+### 3. Intent 队列清理策略
+
+`completed` / `dismissed` / `elevated` 状态的 Intent 保留最近 **50 条**，超出时删除最旧的。
+`pending` / `approved` / `running` 状态的 Intent **不自动清理**（防止丢失未执行任务）。
+
+清理在每次 `IntentQueue.add()` 写入后触发：
+
+```typescript
+private static pruneArchived(): void {
+  const ARCHIVED = ["completed", "dismissed", "elevated"];
+  const MAX = 50;
+  const all = IntentQueue.getAll();
+  const archived = all
+    .filter(i => ARCHIVED.includes(i.status))
+    .sort((a, b) => a.created_at < b.created_at ? -1 : 1);
+  if (archived.length > MAX) {
+    const toRemove = new Set(archived.slice(0, archived.length - MAX).map(i => i.id));
+    IntentQueue.saveAll(all.filter(i => !toRemove.has(i.id)));
+  }
+}
+```
+
+---
+
+### 4. `execute_intent` 等待策略
+
+`execute_intent` 语义是**"启动命令 + 读取初始输出"**，不等待命令结束。
+
+- 固定等待 **2000ms**（与现有 `read_terminal` 使用模式一致）
+- 返回的 `output` 是命令启动后 2s 内的终端输出快照
+- 对于长命令（nmap、hashcat），AI 应在 `expected_outcome` 中说明"输出为初始进度"，
+  并在后续轮次用 `read_terminal` 跟踪完整结果
+
+"默认终端"定义：若 `terminal_id` 未指定，取 `TerminalBridge.getTerminals()` 列表中
+**序号最小（最早创建）且非 running 状态**的终端。若无终端存在，返回错误要求先 `create_terminal`。
+
+---
+
+### 5. 测试预期
+
+遵循现有惯例，仅测试 `core/` 层（零 VS Code 依赖）：
+
+| 测试文件 | 覆盖内容 |
+|---------|---------|
+| `src/test/unit/core/domain/intent.test.ts` | `IntentStatus` 合法值、`Intent` 默认字段、`Goal` 结构 |
+
+`IntentQueue`（依赖 workspaceState）和 `IntentTreeProvider`（依赖 VS Code API）
+不在本次单元测试范围，与现有 `features/` 层无测试的惯例保持一致。
+
+---
+
+### 6. package.json 贡献点清单
+
+需在 `package.json` 的 `contributes` 下新增：
+
+```jsonc
+"viewsContainers": {
+  "activitybar": [{
+    "id": "weaponized-intent",
+    "title": "Weapon Intents",
+    "icon": "resources/icons/intent.svg"   // 需新增图标文件
+  }]
+},
+"views": {
+  "weaponized-intent": [{
+    "id": "weaponized.intentView",
+    "name": "Intents"
+  }]
+},
+"commands": [
+  {
+    "command": "weapon.intent.approve",
+    "title": "Approve Intent",
+    "icon": "$(check)"
+  },
+  {
+    "command": "weapon.intent.skip",
+    "title": "Skip Intent",
+    "icon": "$(close)"
+  },
+  {
+    "command": "weapon.intent.setGoal",
+    "title": "Weapon: Set Engagement Goal"
+  }
+],
+"menus": {
+  "view/item/context": [
+    {
+      "command": "weapon.intent.approve",
+      "when": "view == weaponized.intentView && viewItem == intent-pending",
+      "group": "inline"
+    },
+    {
+      "command": "weapon.intent.skip",
+      "when": "view == weaponized.intentView && viewItem == intent-pending",
+      "group": "inline"
+    }
+  ]
+}
+```
+
+`TreeItem.contextValue` 约定：
+- `"intent-pending"` — pending 状态，显示 Approve/Skip 按钮
+- `"intent-approved"` — approved 状态
+- `"intent-running"` — running 状态
+- `"intent-done"` — completed/dismissed/elevated
+
+---
+
 ## 影响范围
 
 | 文件/模块 | 变更类型 |

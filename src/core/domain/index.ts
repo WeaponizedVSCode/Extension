@@ -49,3 +49,4 @@ import { Host } from "./host";
 export type Config = Host | UserCredential;
 export type ConfigType = "host" | "user";
 export { Collects, envVarSafer, mergeCollects } from "../env/collects";
+export * from "./intent";

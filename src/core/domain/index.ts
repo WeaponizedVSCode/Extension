@@ -43,6 +43,18 @@ export {
     buildEngagementSummary
 } from "./engagement";
 
+export {
+    Intent,
+    IntentStatus,
+    Goal,
+    INTENT_STATUSES,
+    isValidIntentStatus,
+    createIntent,
+    createGoal,
+    CreateIntentInput,
+    CreateGoalInput,
+} from "./intent";
+
 import { UserCredential } from "./user";
 import { Host } from "./host";
 

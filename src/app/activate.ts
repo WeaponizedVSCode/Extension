@@ -7,6 +7,7 @@ import { registerCodeLens } from "./registerCodeLens";
 import { registerTerminalUtils, registerMcpBridge } from "../features/terminal";
 import { registerDefinitionProvider } from "../features/definitions";
 import { registerAIFeatures } from "../features/ai";
+import { registerIntentFeature } from "../features/intent";
 import {
   setEmbeddedMcpServer,
   autoUpdateMcpConfig,
@@ -82,6 +83,14 @@ export async function activateExtension(context: vscode.ExtensionContext) {
     logger.error("Failed to register definition provider:", e);
   }
 
+  // Register Intent feature (independent of AI toggle — TreeView always available)
+  let intentTreeProvider;
+  try {
+    intentTreeProvider = registerIntentFeature(context);
+  } catch (e) {
+    logger.error("Failed to register Intent feature:", e);
+  }
+
   if (config.get<boolean>("ai.enabled", true)) {
     let terminalBridge;
     try {
@@ -94,7 +103,7 @@ export async function activateExtension(context: vscode.ExtensionContext) {
       try {
         const preferredPort = config.get<number>("mcp.port", DEFAULT_MCP_PORT);
         const mcpServer = new EmbeddedMcpServer();
-        const port = await mcpServer.start(terminalBridge, preferredPort);
+        const port = await mcpServer.start(terminalBridge, preferredPort, intentTreeProvider);
         setEmbeddedMcpServer(mcpServer);
         context.subscriptions.push({ dispose: () => mcpServer.stop() });
         await autoUpdateMcpConfig(port);

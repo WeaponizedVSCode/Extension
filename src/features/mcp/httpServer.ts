@@ -16,6 +16,9 @@ import { generateFindingMarkdown } from "../../core/domain/finding";
 import { buildEngagementSummary } from "../../core/domain/engagement";
 import { findAvailablePort } from "./portManager";
 import { FindingMap } from "./findingMap";
+import { IntentQueue, IntentTreeProvider } from "../intent";
+import { createIntent, createGoal } from "../../core/domain/intent";
+import type { IntentStatus } from "../../core/domain/intent";
 
 function updateFrontmatter(content: string, updates: Record<string, string | undefined>): string {
   const fmMatch = content.match(/^(---\s*\n)([\s\S]*?)(\n---)/);
@@ -66,12 +69,14 @@ export class EmbeddedMcpServer {
   private httpServer: http.Server | undefined;
   private port = 0;
   private findingMap = new FindingMap();
+  private intentTreeProvider: IntentTreeProvider | undefined;
 
   getPort(): number {
     return this.port;
   }
 
-  async start(terminalBridge: TerminalBridge, preferredPort: number): Promise<number> {
+  async start(terminalBridge: TerminalBridge, preferredPort: number, intentTreeProvider?: IntentTreeProvider): Promise<number> {
+    this.intentTreeProvider = intentTreeProvider;
     const listenPort = await findAvailablePort(preferredPort);
     await this.findingMap.activate();
 
@@ -410,14 +415,145 @@ export class EmbeddedMcpServer {
       "Get a comprehensive summary of the current penetration testing engagement. Returns: all hosts, credentials, findings with their wiki-link associations (which hosts/users/findings each finding connects to), per-host and per-user finding breakdowns, orphan findings, and computed statistics. Optionally includes the full relationship graph (nodes, edges, attack path, Mermaid diagram) — omit it when you only need counts and associations to reduce response size. Use this as your first call to understand the full engagement state.",
       {
         include_graph: z.boolean().optional().describe("Include the full relationship graph in the response (default: false). Set to true when you need the Mermaid diagram, attack path, or raw edge data."),
+        include_intents: z.boolean().optional().describe("Include goal, intents queue, and intent stats (default: false). Set to true for the AI Intent Loop workflow."),
       },
-      async ({ include_graph }) => {
-        logger.debug(`MCP tool: get_engagement_summary (include_graph=${include_graph ?? false})`);
+      async ({ include_graph, include_intents }: { include_graph?: boolean; include_intents?: boolean }) => {
+        logger.debug(`MCP tool: get_engagement_summary (include_graph=${include_graph ?? false}, include_intents=${include_intents ?? false})`);
         const summary = await this.buildSummary();
-        const result = include_graph ? summary : { ...summary, graph: undefined };
-        return {
-          content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
-        };
+        const result: Record<string, unknown> = include_graph ? { ...summary } : { ...summary, graph: undefined };
+
+        if (include_intents) {
+          const intents = IntentQueue.getAll();
+          const stats: Record<string, number> = { pending: 0, approved: 0, running: 0, completed: 0, dismissed: 0, elevated: 0 };
+          for (const i of intents) {
+            stats[i.status]++;
+          }
+          result.goal = IntentQueue.getGoal();
+          result.intents = intents;
+          result.intentStats = stats;
+        }
+
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      }
+    );
+
+    server.tool(
+      "set_goal",
+      "Set the current penetration testing engagement goal. Use at the start of an engagement or when switching attack phases.",
+      {
+        description: z.string().describe("Goal description, e.g. 'Get Domain Admin on corp.local'"),
+        phase: z.string().optional().describe("Attack phase: reconnaissance, exploitation, post-exploitation"),
+        constraints: z.string().optional().describe("Operational constraints, e.g. 'No noisy scans'"),
+      },
+      async ({ description, phase, constraints }: { description: string; phase?: string; constraints?: string }) => {
+        logger.debug(`MCP tool: set_goal (description=${description})`);
+        const goal = createGoal({ description, phase, constraints });
+        IntentQueue.setGoal(goal);
+        this.intentTreeProvider?.refresh();
+        return { content: [{ type: "text" as const, text: JSON.stringify({ set: true, goal }) }] };
+      }
+    );
+
+    server.tool(
+      "create_intent",
+      "Create a structured action intent based on AI reasoning. The intent enters 'pending' status and awaits human approval in the TreeView before execution. Reasoning must reference specific Finding IDs or engagement facts.",
+      {
+        hypothesis: z.string().describe("Hypothesis statement, e.g. 'DC01 has Kerberoastable accounts'"),
+        reasoning: z.string().min(10).describe("Reasoning basis — MUST reference specific Finding IDs or engagement facts"),
+        command: z.string().describe("Full executable command"),
+        expected_outcome: z.string().describe("What output would confirm the hypothesis"),
+        terminal_id: z.string().optional().describe("Target terminal ID (uses default terminal if omitted)"),
+      },
+      async ({ hypothesis, reasoning, command, expected_outcome, terminal_id }: { hypothesis: string; reasoning: string; command: string; expected_outcome: string; terminal_id?: string }) => {
+        logger.debug(`MCP tool: create_intent (hypothesis=${hypothesis})`);
+        const intent = createIntent({ hypothesis, reasoning, command, expected_outcome, terminal_id });
+        IntentQueue.add(intent);
+        this.intentTreeProvider?.refresh();
+        return { content: [{ type: "text" as const, text: JSON.stringify({ created: true, id: intent.id, status: intent.status }) }] };
+      }
+    );
+
+    server.tool(
+      "update_intent_status",
+      "Update an intent's status after analyzing its execution output. Use 'elevated' when the hypothesis is confirmed (requires finding_id). Use 'dismissed' when the hypothesis is disproven (requires dismissed_reason).",
+      {
+        id: z.string().describe("Intent ID"),
+        status: z.enum(["dismissed", "elevated"]).describe("New status: 'dismissed' (hypothesis disproven) or 'elevated' (confirmed, linked to Finding)"),
+        dismissed_reason: z.string().optional().describe("Required when status=dismissed: why the hypothesis was wrong"),
+        finding_id: z.string().optional().describe("Required when status=elevated: the Finding ID this intent confirmed"),
+      },
+      async ({ id, status, dismissed_reason, finding_id }: { id: string; status: string; dismissed_reason?: string; finding_id?: string }) => {
+        logger.debug(`MCP tool: update_intent_status (id=${id}, status=${status})`);
+        if (status === "dismissed" && !dismissed_reason) {
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: "dismissed_reason is required when status=dismissed" }) }] };
+        }
+        if (status === "elevated" && !finding_id) {
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: "finding_id is required when status=elevated" }) }] };
+        }
+        const existing = IntentQueue.getById(id);
+        if (!existing) {
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: `Intent '${id}' not found` }) }] };
+        }
+        const updates: Record<string, unknown> = { status };
+        if (dismissed_reason) {
+          updates.dismissed_reason = dismissed_reason;
+        }
+        if (finding_id) {
+          updates.finding_id = finding_id;
+        }
+        const updated = IntentQueue.update(id, updates as any);
+        this.intentTreeProvider?.refresh();
+        return { content: [{ type: "text" as const, text: JSON.stringify({ updated: true, id, status: updated?.status }) }] };
+      }
+    );
+
+    server.tool(
+      "execute_intent",
+      "Execute an approved intent. Internally: sets status to 'running', sends command to terminal, waits for Shell Integration buffer (2s), reads output, sets status to 'completed'. Only works on intents with status='approved'. For long-running commands, the initial output is captured — use read_terminal for follow-up.",
+      {
+        id: z.string().describe("Intent ID (must be in 'approved' status)"),
+      },
+      async ({ id }: { id: string }) => {
+        logger.debug(`MCP tool: execute_intent (id=${id})`);
+        const intent = IntentQueue.getById(id);
+        if (!intent) {
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: `Intent '${id}' not found` }) }] };
+        }
+        if (intent.status !== "approved") {
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: `Intent '${id}' is '${intent.status}', must be 'approved'` }) }] };
+        }
+
+        // Step 1: Set running
+        IntentQueue.update(id, { status: "running" });
+        this.intentTreeProvider?.refresh();
+
+        // Step 2: Determine terminal
+        const terminalId = intent.terminal_id ?? this.pickDefaultTerminal(bridge);
+        if (!terminalId) {
+          IntentQueue.update(id, { status: "approved" });
+          this.intentTreeProvider?.refresh();
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: "No terminal available. Use create_terminal first." }) }] };
+        }
+
+        // Step 3: Send command
+        const sent = bridge.sendCommandDirect(terminalId, intent.command);
+        if (!sent) {
+          IntentQueue.update(id, { status: "approved" });
+          this.intentTreeProvider?.refresh();
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: `Failed to send command to terminal '${terminalId}'` }) }] };
+        }
+
+        // Step 4: Wait for shell integration buffer
+        await new Promise((r) => setTimeout(r, 2000));
+
+        // Step 5: Read output
+        const output = await bridge.getTerminalOutput(terminalId, 50, true);
+
+        // Step 6: Set completed
+        IntentQueue.update(id, { status: "completed", output });
+        this.intentTreeProvider?.refresh();
+
+        return { content: [{ type: "text" as const, text: JSON.stringify({ id, command: intent.command, output }) }] };
       }
     );
   }
@@ -490,6 +626,14 @@ export class EmbeddedMcpServer {
         };
       }
     );
+  }
+
+  private pickDefaultTerminal(bridge: TerminalBridge): string | undefined {
+    const terminals = bridge.getTerminals();
+    if (terminals.length === 0) {
+      return undefined;
+    }
+    return terminals[0].id ?? terminals[0].name;
   }
 
   private async buildSummary() {

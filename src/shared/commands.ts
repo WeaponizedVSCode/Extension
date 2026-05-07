@@ -32,6 +32,11 @@ export const Commands = {
   TERMINAL_LOGGER_REGISTER: 'weaponized.terminal-logger.register',
   TERMINAL_LOGGER_UNREGISTER: 'weaponized.terminal-logger.unregister',
 
+  // Intent
+  INTENT_APPROVE: 'weapon.intent.approve',
+  INTENT_SKIP: 'weapon.intent.skip',
+  INTENT_SET_GOAL: 'weapon.intent.setGoal',
+
   // External
   FOAM_SHOW_GRAPH: 'foam-vscode.show-graph',
 } as const;

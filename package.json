@@ -101,6 +101,23 @@
         "command": "foam-vscode.show-graph",
         "title": "Show Foam Graph",
         "category": "weapon foam"
+      },
+      {
+        "command": "weapon.intent.approve",
+        "title": "Approve Intent",
+        "icon": "$(check)",
+        "category": "weapon intent"
+      },
+      {
+        "command": "weapon.intent.skip",
+        "title": "Skip Intent",
+        "icon": "$(close)",
+        "category": "weapon intent"
+      },
+      {
+        "command": "weapon.intent.setGoal",
+        "title": "Weapon: Set Engagement Goal",
+        "category": "weapon intent"
       }
     ],
     "configuration": {
@@ -243,6 +260,38 @@
           ]
         }
       }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "weaponized-intent",
+          "title": "Weapon Intents",
+          "icon": "resources/icons/intent.svg"
+        }
+      ]
+    },
+    "views": {
+      "weaponized-intent": [
+        {
+          "id": "weaponized.intentView",
+          "name": "Intents",
+          "icon": "resources/icons/intent.svg"
+        }
+      ]
+    },
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "weapon.intent.approve",
+          "when": "view == weaponized.intentView && viewItem == intent-pending",
+          "group": "inline"
+        },
+        {
+          "command": "weapon.intent.skip",
+          "when": "view == weaponized.intentView && viewItem == intent-pending",
+          "group": "inline"
+        }
+      ]
     },
     "terminal": {
       "profiles": [

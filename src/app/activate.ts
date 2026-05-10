@@ -12,6 +12,8 @@ import {
   autoUpdateMcpConfig,
 } from "../features/mcp/install";
 import { EmbeddedMcpServer } from "../features/mcp/httpServer";
+import { registerIntentFeature } from "../features/intent";
+import type { IntentTreeProvider } from "../features/intent";
 import { DEFAULT_MCP_PORT } from "../features/mcp/portManager";
 
 async function dependencyCheck(): Promise<boolean> {
@@ -91,10 +93,17 @@ export async function activateExtension(context: vscode.ExtensionContext) {
     }
 
     if (terminalBridge) {
+      let intentProvider: IntentTreeProvider | undefined;
+      try {
+        intentProvider = registerIntentFeature(context);
+      } catch (e) {
+        logger.error("Failed to register intent feature:", e);
+      }
+
       try {
         const preferredPort = config.get<number>("mcp.port", DEFAULT_MCP_PORT);
         const mcpServer = new EmbeddedMcpServer();
-        const port = await mcpServer.start(terminalBridge, preferredPort);
+        const port = await mcpServer.start(terminalBridge, preferredPort, intentProvider);
         setEmbeddedMcpServer(mcpServer);
         context.subscriptions.push({ dispose: () => mcpServer.stop() });
         await autoUpdateMcpConfig(port);

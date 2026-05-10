@@ -16,6 +16,9 @@ import { generateFindingMarkdown } from "../../core/domain/finding";
 import { buildEngagementSummary } from "../../core/domain/engagement";
 import { findAvailablePort } from "./portManager";
 import { FindingMap } from "./findingMap";
+import { IntentQueue } from "../intent/queue/intentQueue";
+import type { IntentTreeProvider } from "../intent/treeview/intentTreeProvider";
+import type { Intent, IntentStatus } from "../../core/domain/intent";
 
 function updateFrontmatter(content: string, updates: Record<string, string | undefined>): string {
   const fmMatch = content.match(/^(---\s*\n)([\s\S]*?)(\n---)/);
@@ -66,12 +69,14 @@ export class EmbeddedMcpServer {
   private httpServer: http.Server | undefined;
   private port = 0;
   private findingMap = new FindingMap();
+  private intentProvider: IntentTreeProvider | undefined;
 
   getPort(): number {
     return this.port;
   }
 
-  async start(terminalBridge: TerminalBridge, preferredPort: number): Promise<number> {
+  async start(terminalBridge: TerminalBridge, preferredPort: number, intentProvider?: IntentTreeProvider): Promise<number> {
+    this.intentProvider = intentProvider;
     const listenPort = await findAvailablePort(preferredPort);
     await this.findingMap.activate();
 
@@ -82,7 +87,7 @@ export class EmbeddedMcpServer {
       const server = new McpServer({ name: "weaponized-vscode", version: "1.0.0" });
       const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
       self.registerResources(server);
-      self.registerTools(server, terminalBridge);
+      self.registerTools(server, terminalBridge, self.intentProvider);
       self.registerPrompts(server);
       await server.connect(transport);
       await transport.handleRequest(req, res);
@@ -206,7 +211,7 @@ export class EmbeddedMcpServer {
     });
   }
 
-  private registerTools(server: McpServer, bridge: TerminalBridge): void {
+  private registerTools(server: McpServer, bridge: TerminalBridge, intentProvider?: IntentTreeProvider): void {
     server.tool("get_targets", "Get all discovered hosts/targets", {}, async () => {
       logger.debug("MCP tool: get_targets");
       return { content: [{ type: "text" as const, text: JSON.stringify(Context.HostState ?? [], null, 2) }] };
@@ -407,17 +412,180 @@ export class EmbeddedMcpServer {
 
     server.tool(
       "get_engagement_summary",
-      "Get a comprehensive summary of the current penetration testing engagement. Returns: all hosts, credentials, findings with their wiki-link associations (which hosts/users/findings each finding connects to), per-host and per-user finding breakdowns, orphan findings, and computed statistics. Optionally includes the full relationship graph (nodes, edges, attack path, Mermaid diagram) — omit it when you only need counts and associations to reduce response size. Use this as your first call to understand the full engagement state.",
+      "Get a comprehensive summary of the current penetration testing engagement. Returns: all hosts, credentials, findings with their wiki-link associations (which hosts/users/findings each finding connects to), per-host and per-user finding breakdowns, orphan findings, and computed statistics. Optionally includes the full relationship graph (nodes, edges, attack path, Mermaid diagram). Optionally includes goal and intent queue. Use this as your first call to understand the full engagement state.",
       {
         include_graph: z.boolean().optional().describe("Include the full relationship graph in the response (default: false). Set to true when you need the Mermaid diagram, attack path, or raw edge data."),
+        include_intents: z.boolean().optional().describe("Include current goal and full intent queue with stats (default: false). Set to true during Reason step of the Intent Loop."),
       },
-      async ({ include_graph }) => {
-        logger.debug(`MCP tool: get_engagement_summary (include_graph=${include_graph ?? false})`);
+      async ({ include_graph, include_intents }) => {
+        logger.debug(`MCP tool: get_engagement_summary (include_graph=${include_graph ?? false}, include_intents=${include_intents ?? false})`);
         const summary = await this.buildSummary();
-        const result = include_graph ? summary : { ...summary, graph: undefined };
+        const result: Record<string, unknown> = include_graph ? { ...summary } : { ...summary, graph: undefined };
+        if (include_intents) {
+          const allIntents = IntentQueue.getAll();
+          result.goal = IntentQueue.getGoal();
+          result.intents = allIntents;
+          result.intentStats = {
+            pending: allIntents.filter((i) => i.status === "pending").length,
+            approved: allIntents.filter((i) => i.status === "approved").length,
+            running: allIntents.filter((i) => i.status === "running").length,
+            completed: allIntents.filter((i) => i.status === "completed").length,
+            dismissed: allIntents.filter((i) => i.status === "dismissed").length,
+            elevated: allIntents.filter((i) => i.status === "elevated").length,
+          };
+        }
         return {
           content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
         };
+      }
+    );
+
+    server.tool(
+      "set_goal",
+      "Set the current penetration testing engagement goal and phase constraints. Call this at the start of an engagement or when switching attack phase.",
+      {
+        description: z.string().describe("Goal description — e.g. 'Get domain admin on corp.local'"),
+        phase: z.enum(["reconnaissance", "scanning", "exploitation", "post-exploitation"]).optional().describe("Current attack phase"),
+        constraints: z.string().optional().describe("Constraints to operate within — e.g. 'avoid noisy scans, no persistence'"),
+      },
+      async ({ description, phase, constraints }) => {
+        logger.debug("MCP tool: set_goal");
+        IntentQueue.setGoal({ description, phase, constraints, updated_at: new Date().toISOString() });
+        intentProvider?.refresh();
+        return { content: [{ type: "text" as const, text: JSON.stringify({ ok: true, description, phase, constraints }) }] };
+      }
+    );
+
+    server.tool(
+      "get_goal",
+      "Read the current engagement goal and phase constraints. Call before every Reason step to stay aligned.",
+      {},
+      async () => {
+        logger.debug("MCP tool: get_goal");
+        const goal = IntentQueue.getGoal();
+        return { content: [{ type: "text" as const, text: JSON.stringify(goal ?? { error: "No goal set. Call set_goal first." }) }] };
+      }
+    );
+
+    server.tool(
+      "create_intent",
+      "Write a new action intent to the queue (status: pending, awaiting human approval in the TreeView). Create multiple per Reason round — show the human the full attack plan. reasoning MUST reference specific Finding IDs or confirmed facts; vague reasoning is rejected.",
+      {
+        hypothesis: z.string().describe("The hypothesis being tested — e.g. 'DC01 has Kerberoastable accounts'"),
+        reasoning: z.string().min(1).describe("Why this hypothesis is worth testing. MUST reference specific Finding IDs (e.g. F-003) or confirmed state. Vague reasoning not allowed."),
+        command: z.string().describe("The exact command to run — must be copy-paste ready"),
+        expected_outcome: z.string().describe("What output would confirm the hypothesis"),
+        terminal_id: z.string().optional().describe("Terminal ID to run the command in (omit for default terminal)"),
+      },
+      async ({ hypothesis, reasoning, command, expected_outcome, terminal_id }) => {
+        logger.debug("MCP tool: create_intent");
+        const intent: Intent = {
+          id: `intent-${Date.now()}`,
+          hypothesis,
+          reasoning,
+          command,
+          expected_outcome,
+          status: "pending",
+          terminal_id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        IntentQueue.add(intent);
+        intentProvider?.refresh();
+        return { content: [{ type: "text" as const, text: JSON.stringify({ created: true, id: intent.id, status: "pending" }) }] };
+      }
+    );
+
+    server.tool(
+      "list_intents",
+      "List intents from the queue. Filter by status to find approved intents ready for execution.",
+      {
+        status: z.enum(["pending", "approved", "running", "completed", "dismissed", "elevated"]).optional().describe("Filter by intent status. Omit to return all."),
+      },
+      async ({ status }) => {
+        logger.debug(`MCP tool: list_intents (status=${status ?? "all"})`);
+        const intents = status ? IntentQueue.getByStatus(status as IntentStatus) : IntentQueue.getAll();
+        return { content: [{ type: "text" as const, text: JSON.stringify(intents, null, 2) }] };
+      }
+    );
+
+    server.tool(
+      "update_intent_status",
+      "Update an intent's status. Use 'dismissed' when the hypothesis is invalidated (dismissed_reason required). Use 'elevated' after creating a finding that confirms the hypothesis (finding_id required).",
+      {
+        id: z.string().describe("Intent ID"),
+        status: z.enum(["pending", "approved", "running", "completed", "dismissed", "elevated"]).describe("New status"),
+        dismissed_reason: z.string().optional().describe("Required when status=dismissed. Why the hypothesis was invalidated."),
+        finding_id: z.string().optional().describe("Required when status=elevated. The Finding ID that confirms the hypothesis."),
+      },
+      async ({ id, status, dismissed_reason, finding_id }) => {
+        logger.debug(`MCP tool: update_intent_status (id=${id}, status=${status})`);
+        const intent = IntentQueue.getById(id);
+        if (!intent) {
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: `Intent '${id}' not found` }) }] };
+        }
+        if (status === "dismissed" && !dismissed_reason) {
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: "dismissed_reason is required when status=dismissed" }) }] };
+        }
+        if (status === "elevated" && !finding_id) {
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: "finding_id is required when status=elevated" }) }] };
+        }
+        IntentQueue.update(id, { status: status as IntentStatus, dismissed_reason, finding_id });
+        intentProvider?.refresh();
+        return { content: [{ type: "text" as const, text: JSON.stringify({ updated: true, id, status }) }] };
+      }
+    );
+
+    server.tool(
+      "execute_intent",
+      "Execute an approved intent: sends the command to the terminal, waits 2s for initial output, captures the snapshot. Intent must have status='approved'. For long-running commands, note in expected_outcome that output is 'initial progress' and use read_terminal later for complete results.",
+      {
+        id: z.string().describe("Intent ID (must have status='approved')"),
+      },
+      async ({ id }) => {
+        logger.debug(`MCP tool: execute_intent (id=${id})`);
+        const intent = IntentQueue.getById(id);
+        if (!intent) {
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: `Intent '${id}' not found` }) }] };
+        }
+        if (intent.status !== "approved") {
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: `Intent '${id}' is not approved (status: ${intent.status}). Approved intents only.` }) }] };
+        }
+
+        // Resolve terminal — use specified or default (lowest-id non-running terminal)
+        let terminalId = intent.terminal_id;
+        if (!terminalId) {
+          const terminals = bridge.getTerminals();
+          if (terminals.length === 0) {
+            return { content: [{ type: "text" as const, text: JSON.stringify({ error: "No terminals available. Call create_terminal first." }) }] };
+          }
+          const sorted = [...terminals].sort((a, b) => Number(a.id) - Number(b.id));
+          terminalId = sorted[0].id;
+        }
+
+        // Mark running
+        IntentQueue.update(id, { status: "running" });
+        intentProvider?.refresh();
+
+        // Send command
+        const sent = bridge.sendCommandDirect(terminalId, intent.command);
+        if (!sent) {
+          IntentQueue.update(id, { status: "approved" }); // rollback
+          intentProvider?.refresh();
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: `Terminal '${terminalId}' not found` }) }] };
+        }
+
+        // Wait 2s for shell integration to capture output
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        // Read output
+        const output = await bridge.getTerminalOutput(terminalId, 50, true);
+
+        // Update to completed with output
+        IntentQueue.update(id, { status: "completed", output });
+        intentProvider?.refresh();
+
+        return { content: [{ type: "text" as const, text: JSON.stringify({ id, command: intent.command, output }) }] };
       }
     );
   }

@@ -34,4 +34,9 @@ export const Commands = {
 
   // External
   FOAM_SHOW_GRAPH: 'foam-vscode.show-graph',
+
+  // Intent
+  INTENT_APPROVE: 'weapon.intent.approve',
+  INTENT_SKIP: 'weapon.intent.skip',
+  INTENT_SET_GOAL: 'weapon.intent.setGoal',
 } as const;
